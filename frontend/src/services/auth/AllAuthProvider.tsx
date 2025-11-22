@@ -48,7 +48,21 @@ type AuthContextType = {
   logout: () => Promise<void>;
 };
 
-const AUTH_URL = "/.auth/headless";
+// Get backend base URL: use full URL in production if available, relative path in development
+// IMPORTANTE: En producción, VITE_BACKEND_URL DEBE estar configurada en Railway antes del build
+const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_URL || "";
+const AUTH_URL = BACKEND_BASE_URL 
+  ? `${BACKEND_BASE_URL}/.auth/headless` 
+  : "/.auth/headless";
+
+if (import.meta.env.PROD && !BACKEND_BASE_URL) {
+  console.warn("⚠️ VITE_BACKEND_URL no está configurada en producción!");
+  console.warn("⚠️ Las requests relativas NO funcionarán en producción sin proxy.");
+  console.warn("⚠️ Configura VITE_BACKEND_URL=https://tu-backend.up.railway.app en Railway antes del build.");
+}
+
+console.log("🔧 AUTH_URL configured:", AUTH_URL);
+console.log("🔧 BACKEND_BASE_URL:", BACKEND_BASE_URL || "(using relative path - solo funciona en dev con Vite proxy)");
 
 const ANON: Session = {
   authenticated: false,
@@ -120,6 +134,9 @@ export function AllAuthProvider({
 
   useEffect(() => {
     console.log("🔧 AllAuthProvider: Initializing, fetching config from:", configUrl);
+    console.log("🔧 Auth URL:", authUrl);
+    console.log("🔧 Is production?", import.meta.env.PROD);
+    console.log("🔧 VITE_BACKEND_URL:", import.meta.env.VITE_BACKEND_URL);
     
     Promise.allSettled([
       fetch(configUrl, {
@@ -128,11 +145,24 @@ export function AllAuthProvider({
           "Content-Type": "application/json",
         },
       })
-        .then((res) => {
+        .then(async (res) => {
           console.log("🔧 Config fetch response:", res.status, res.statusText);
+          console.log("🔧 Content-Type:", res.headers.get("Content-Type"));
+          
           if (!res.ok) {
+            const text = await res.text();
+            console.error("❌ Config fetch failed - Response:", text.substring(0, 200));
             throw new Error(`Config fetch failed: ${res.status} ${res.statusText}`);
           }
+          
+          const contentType = res.headers.get("Content-Type") || "";
+          if (!contentType.includes("application/json")) {
+            const text = await res.text();
+            console.error("❌ Response is not JSON! Content-Type:", contentType);
+            console.error("❌ Response preview:", text.substring(0, 200));
+            throw new Error(`Expected JSON but got ${contentType}. This usually means the request went to the frontend instead of the backend. Check VITE_BACKEND_URL in production.`);
+          }
+          
           return res.json();
         })
         .catch((error) => {
