@@ -2,9 +2,7 @@
 
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "frontend/docker/Dockerfile"
-dockerContext = "frontend"
-buildTarget = "runtime"
+dockerfilePath = "Dockerfile.frontend"
 
 [deploy]
 startCommand = "serve -s dist -l 3000"
