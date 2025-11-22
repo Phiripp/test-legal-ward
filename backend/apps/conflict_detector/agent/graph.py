@@ -70,10 +70,5 @@ def run_agent(document_pages: list[str]) -> dict:
     result = agent.invoke(initial_state)
     print("result: ", result)
 
-    # LangGraph puede retornar un dict o el objeto, manejamos ambos casos
-    print("results.keys(): ", result.keys())
-    conflictos = result["conflictos"]
-    print("conflictos: ", conflictos)
-
     return result
 
