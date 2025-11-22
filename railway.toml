@@ -3,8 +3,7 @@
 
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "backend/docker/Dockerfile"
-dockerContext = "backend"
+dockerfilePath = "/backend/docker/Dockerfile"
 
 [deploy]
 startCommand = "/entrypoint.sh"
