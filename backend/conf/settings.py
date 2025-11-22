@@ -136,6 +136,7 @@ INSTALLED_APPS = [
     ############################
     # Common Django apps
     ############################
+    "whitenoise.runserver_nostatic",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -149,7 +150,6 @@ INSTALLED_APPS = [
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
-    "allauth.socialaccount.providers.amazon_cognito",
     "allauth.headless",
     "allauth.usersessions",
     "corsheaders",
@@ -171,7 +171,6 @@ AUTHENTICATION_BACKENDS = [
 AUTH_USER_MODEL = django_config.AUTH_USER_MODEL
 LOGIN_REDIRECT_URL = django_config.LOGIN_REDIRECT_URL
 LOGIN_URL = django_config.LOGIN_URL
-
 
 #############################
 # PASSWORDS
@@ -218,9 +217,9 @@ MIDDLEWARE = [
 #############################
 # STATIC
 #############################
-STATIC_ROOT = str(BASE_DIR / "staticfiles")
+STATIC_ROOT = str(BASE_DIR / ".staticfiles")
 STATIC_URL = "/static/"
-STATICFILES_DIRS = [str(APPS_DIR / "static")] if (APPS_DIR / "static").exists() else []
+STATICFILES_DIRS = [str(BASE_DIR / "static")] if (BASE_DIR / "static").exists() else []
 STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.FileSystemFinder",
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
@@ -243,9 +242,7 @@ TEMPLATES = [
         # https://docs.djangoproject.com/en/dev/ref/settings/#std:setting-TEMPLATES-BACKEND
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         # https://docs.djangoproject.com/en/dev/ref/settings/#dirs
-        "DIRS": [str(APPS_DIR / "templates")]
-        if (APPS_DIR / "templates").exists()
-        else [],
+        "DIRS": [str(BASE_DIR / "templates")],
         # https://docs.djangoproject.com/en/dev/ref/settings/#app-dirs
         "APP_DIRS": True,
         "OPTIONS": {
@@ -276,13 +273,13 @@ FIXTURE_DIRS = (str(APPS_DIR / "fixtures"),) if (APPS_DIR / "fixtures").exists()
 # SECURITY
 #############################
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = not DEBUG  # Require HTTPS in production/staging
 X_FRAME_OPTIONS = "DENY"
 SECURE_SSL_REDIRECT = django_config.SECURE_SSL_REDIRECT
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # WARNING - CSRF disabled
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # CSRF_COOKIE_HTTPONLY = False
@@ -366,7 +363,7 @@ CORS_EXPOSE_HEADERS = ["X-Session-Token"]
 
 # Allow cookies to be sent cross-origin
 SESSION_COOKIE_SAMESITE = "Lax"
-SESSION_COOKIE_SECURE = False  # not DEBUG  # Require HTTPS in production
+# SESSION_COOKIE_SECURE is set above in SECURITY section
 
 
 #############################
@@ -406,12 +403,14 @@ HEADLESS_ONLY = False
 ACCOUNT_ALLOW_REGISTRATION = True
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_LOGIN_METHODS = {"email"}
-ACCOUNT_SIGNUP_FIELDS = ["email*"]
+ACCOUNT_SIGNUP_FIELDS = {"email*"}
 ACCOUNT_EMAIL_VERIFICATION = "none"
-
+ACCOUNT_ADAPTER = "apps.users.adapters.AccountAdapter"
+SOCIALACCOUNT_ADAPTER = "apps.users.adapters.SocialAccountAdapter"
 SOCIALACCOUNT_ONLY = False
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 
 
 #############################
