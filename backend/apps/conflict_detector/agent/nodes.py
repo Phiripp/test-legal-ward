@@ -11,28 +11,9 @@ from openai import OpenAI
 from .models import ConflictoDetectado, ImpactoConflicto, ProyectoLey, ProyectoLeyImpacto
 from .prompts import MAP_EXTRACCION_MATRICES
 from .state import ConflictDetectorState
-from config import OPENAI_API_KEY
+from django.conf import settings
+from .llm_map import llm_map
 
-# # Importar llm_map desde el módulo de utilidades
-# import sys
-# import types
-
-# # Agregar el directorio padre al path para importar llm_map
-# agents_dir = Path(__file__).parent.parent
-# if str(agents_dir) not in sys.path:
-#     sys.path.insert(0, str(agents_dir))
-
-# try:
-#     # Crear un módulo config temporal si no existe
-#     if 'config' not in sys.modules:
-#         config_module = types.ModuleType('config')
-#         config_module.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-#         sys.modules['config'] = config_module
-    
-#     from llm_map import llm_map
-# except ImportError as e:
-#     print(f"⚠️  No se pudo importar llm_map: {e}")
-#     llm_map = None
 
 # Variables globales de configuración
 SIMILITUD_THRESHOLD = 0.4
@@ -46,7 +27,7 @@ _client = None
 def get_openai_client() -> OpenAI:
     """Obtiene o crea el cliente de OpenAI."""
     global _client
-    _client = OpenAI(api_key=OPENAI_API_KEY)
+    _client = OpenAI(api_key=settings.PROJECT_OPENAI_API_KEY)
     return _client
 
 
@@ -242,7 +223,7 @@ def calcular_impacto_conflictos(conflictos: list[ConflictoDetectado]):
         MapResult con los resultados del procesamiento LLM
     """
     if not conflictos:
-        from llm_map import MapResult
+        from .llm_map import MapResult
         return MapResult(map_results=[])
 
     # Convertir conflictos a strings usando __str__

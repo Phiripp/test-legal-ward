@@ -3,7 +3,7 @@
 import fitz  # PyMuPDF
 from asgiref.sync import sync_to_async
 
-from agents.conflict_detector import run_agent
+from .agent.graph import run_agent
 
 
 def extract_text_from_pdf(pdf_content: bytes) -> list[str]:

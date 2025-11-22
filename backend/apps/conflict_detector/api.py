@@ -16,7 +16,7 @@ class ConflictDetectionResponse(Schema):
 router = Router()
 
 
-@router.post("/detect", response=ConflictDetectionResponse)
+@router.post("/detect", response=ConflictDetectionResponse, auth=None)
 async def detect_conflicts_endpoint(request, file: UploadedFile = File(...)):
     """
     Detecta conflictos usando el agente LangGraph.

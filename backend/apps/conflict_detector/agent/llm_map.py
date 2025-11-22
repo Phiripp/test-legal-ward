@@ -12,7 +12,7 @@ from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
-from config import OPENAI_API_KEY
+from django.conf import settings
 
 # Type variable for Pydantic models
 T = TypeVar('T', bound=BaseModel)
@@ -94,7 +94,7 @@ def llm_map(
     llm: Runnable | None = None,
     llm_model: str = 'gpt-4o-mini',
     llm_temperature: float = 0.1,
-    openai_api_key: str = OPENAI_API_KEY,
+    openai_api_key: str = settings.PROJECT_OPENAI_API_KEY,
     concurrency_limit: int = 16,
 ) -> MapResult:
     """Execute a Map pipeline with support for single or sequential multi-step processing.
@@ -164,7 +164,7 @@ def llm_map(
         map_parsers = [map_output_parser] * len(map_prompts)
 
     # Initialize LLM
-    _llm = llm or _get_llm(llm_model, llm_temperature, openai_api_key)
+    _llm = llm or _get_llm(llm_model, llm_temperature, settings.PROJECT_OPENAI_API_KEY)
     current_results = texts
 
     # Execute pipeline steps

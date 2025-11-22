@@ -2,12 +2,6 @@ version = 1
 revision = 2
 requires-python = "==3.13.*"
 
-[manifest]
-members = [
-    "backend",
-    "langgraph-workflows",
-]
-
 [[package]]
 name = "aiohappyeyeballs"
 version = "2.6.1"
@@ -149,7 +143,10 @@ dependencies = [
     { name = "django-cors-headers" },
     { name = "django-ninja" },
     { name = "gunicorn" },
-    { name = "langgraph-workflows" },
+    { name = "langchain-openai" },
+    { name = "langgraph" },
+    { name = "numpy" },
+    { name = "openai" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pymupdf" },
     { name = "requests" },
@@ -176,7 +173,10 @@ requires-dist = [
     { name = "django-cors-headers", specifier = ">=4.7.0" },
     { name = "django-ninja", specifier = ">=1.4.3" },
     { name = "gunicorn", specifier = ">=23.0.0" },
-    { name = "langgraph-workflows", editable = "packages/langgraph-workflows" },
+    { name = "langchain-openai", specifier = ">=1.0.3" },
+    { name = "langgraph", specifier = ">=1.0.3" },
+    { name = "numpy", specifier = ">=2.3.5" },
+    { name = "openai", specifier = ">=2.8.1" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2.0" },
     { name = "pymupdf", specifier = ">=1.24.0" },
     { name = "requests", specifier = ">=2.32.0" },
@@ -640,27 +640,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/23/d8/40e01190a73c564a4744e29a6c902f78d34d43dad9b652a363a92a67059c/langgraph_sdk-0.2.9.tar.gz", hash = "sha256:b3bd04c6be4fa382996cd2be8fbc1e7cc94857d2bc6b6f4599a7f2a245975303", size = 99802, upload-time = "2025-09-20T18:49:14.734Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/66/05/b2d34e16638241e6f27a6946d28160d4b8b641383787646d41a3727e0896/langgraph_sdk-0.2.9-py3-none-any.whl", hash = "sha256:fbf302edadbf0fb343596f91c597794e936ef68eebc0d3e1d358b6f9f72a1429", size = 56752, upload-time = "2025-09-20T18:49:13.346Z" },
-]
-
-[[package]]
-name = "langgraph-workflows"
-version = "0.1.0"
-source = { editable = "packages/langgraph-workflows" }
-dependencies = [
-    { name = "langchain-core" },
-    { name = "langchain-openai" },
-    { name = "langgraph" },
-    { name = "numpy" },
-    { name = "openai" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "langchain-core", specifier = ">=0.3.0" },
-    { name = "langchain-openai", specifier = ">=0.2.0" },
-    { name = "langgraph", specifier = ">=0.2.0" },
-    { name = "numpy", specifier = ">=1.24.0" },
-    { name = "openai", specifier = ">=1.0.0" },
 ]
 
 [[package]]

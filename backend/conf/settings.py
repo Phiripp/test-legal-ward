@@ -64,6 +64,7 @@ class EmailConfig(Config):
 
 class ProjectConfig(Config):
     """Project-specific configuration"""
+    PROJECT_OPENAI_API_KEY: str = ""
     ...
 
 # Load configurations
@@ -423,4 +424,4 @@ SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
 #############################
 # PROJECT SPECIFIC SETTINGS
 #############################
-# MY_SETTING = project_config.MY_SETTING
+PROJECT_OPENAI_API_KEY = project_config.PROJECT_OPENAI_API_KEY
