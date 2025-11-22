@@ -35,7 +35,7 @@ urlpatterns = [
     path(".auth/accounts/", include("allauth.urls")),
     path(".auth/headless/", include("allauth.headless.urls")),
     path("api/", api.urls),
-    path("_health/", lambda request: JsonResponse({"status": "ok"})),
+    path("_health/", lambda request: JsonResponse({"status": "ok", "service": "backend"})),
     ######################
     # Additional URLs
     ######################
