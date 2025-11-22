@@ -7,7 +7,7 @@ export const Route = createFileRoute("/_authenticated/discoveries/$id")({
 
 function ProjectDetail() {
   const navigate = useNavigate();
-  const { id } = Route.useParams();
+  const { id: _id } = Route.useParams(); // TODO: Use id when fetching from API
 
   // Mock data - en producción vendría de una API
   const project = {
