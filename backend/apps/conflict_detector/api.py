@@ -1,22 +1,14 @@
 """API endpoints para conflict detector."""
 
-from ninja import File, Router, Schema, UploadedFile
+from ninja import File, Router, UploadedFile
 
 from .services import detect_conflicts
-
-
-class ConflictDetectionResponse(Schema):
-    """Response schema para detección de conflictos."""
-
-    resultado: str
-    conflictos: dict
-    total_conflictos: int
 
 
 router = Router()
 
 
-@router.post("/detect", response=ConflictDetectionResponse, auth=None)
+@router.post("/detect", auth=None)
 async def detect_conflicts_endpoint(request, file: UploadedFile = File(...)):
     """
     Detecta conflictos usando el agente LangGraph.
@@ -29,8 +21,4 @@ async def detect_conflicts_endpoint(request, file: UploadedFile = File(...)):
 
     # Procesar el PDF y detectar conflictos
     result = await detect_conflicts(pdf_content)
-    return ConflictDetectionResponse(
-        resultado=result["resultado"],
-        conflictos=result["conflictos"],
-        total_conflictos=result["total_conflictos"],
-    )
+    return result
