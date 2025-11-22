@@ -1,5 +1,9 @@
 # Railway.toml - Multi-service deployment configuration
 # Docs: https://docs.railway.app/deploy/config-as-code
+#
+# IMPORTANTE: Este archivo requiere que crees los servicios desde la UI de Railway
+# con sus Root Directories configurados. Railway no puede detectar automáticamente
+# proyectos multi-servicio desde el root.
 
 # Backend service configuration
 [deploy.backend]
@@ -10,7 +14,7 @@ restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 
 [deploy.backend.build]
-builder = "dockerfile"
+builder = "DOCKERFILE"
 dockerfilePath = "docker/Dockerfile"
 dockerContext = "backend"
 
@@ -19,7 +23,7 @@ dockerContext = "backend"
 startCommand = "serve -s dist -l $PORT"
 
 [deploy.frontend.build]
-builder = "dockerfile"
+builder = "DOCKERFILE"
 dockerfilePath = "docker/Dockerfile"
 dockerContext = "frontend"
 dockerTarget = "runtime"
