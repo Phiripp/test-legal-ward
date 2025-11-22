@@ -10,7 +10,7 @@ class ConflictDetectorState(BaseModel):
 
     document_pages: list[str]
     proyectos_ley: list[ProyectoLey] = []
-    articulos_distintos: list[Articulo] = []
+    articulos_con_proyecto: list[dict] = []
     conflictos: list[ConflictoDetectado] = []
     proyecto_ley_impacto: ProyectoLeyImpacto | None = None
 

@@ -321,6 +321,7 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
         
         # Si hay al menos un proyecto, usar el primero (o podríamos retornar una lista)
         print("proyectos_impacto: ", proyectos_impacto)
+        all_descriptions = []
         if proyectos_impacto:
             primer_proyecto = next(iter(proyectos_impacto.values()))
             proyecto_ley_impacto = ProyectoLeyImpacto(
@@ -328,12 +329,25 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
                 proyecto_titulo=primer_proyecto["proyecto_titulo"],
                 impactos=primer_proyecto["impactos"],
             )
+            for impacto in primer_proyecto["impactos"]:
+                if impacto.nivel_relevancia > 50:
+                    all_descriptions.append(impacto.descripcion_impacto)
+                else:
+                    print("impacto.nivel_relevancia: ", impacto.nivel_relevancia)
+        print("all_descriptions: ", all_descriptions)
+        if len(all_descriptions) > 1:
+            desription = consolidate_descriptions(all_descriptions)
+        elif len(all_descriptions) == 1:
+            desription = all_descriptions[0]
+        else:
+            desription = ""
+
 
     # Actualizar el estado
-    state.proyectos_ley = proyectos_ley
-    state.articulos_distintos = articulos_distintos
-    state.conflictos = conflictos
+    #state.proyectos_ley = proyectos_ley
+    ##state.conflictos = conflictos
     state.proyecto_ley_impacto = proyecto_ley_impacto
+    state.descripcion_impacto = desription
 
     print("state: ", state)
     return state
