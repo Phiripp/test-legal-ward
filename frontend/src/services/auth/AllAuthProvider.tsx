@@ -146,7 +146,7 @@ export function AllAuthProvider({
 
   useEffect(() => {
     Promise.allSettled([
-      fetch(configUrl).then((res) => res.json()),
+      fetch(configUrl, { credentials: "include" }).then((res) => res.json()),
       updateSession(),
     ]).then((results) => {
       const configResult = results[0];
@@ -172,6 +172,10 @@ export function AllAuthProvider({
             login: (email: string, password: string) =>
               fetch(`${authUrl}/browser/v1/auth/login`, {
                 method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                credentials: "include",
                 body: JSON.stringify({ email, password }),
               }).then((res) => res.json()),
           },
