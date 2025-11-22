@@ -41,7 +41,18 @@ type AuthContextType = {
   logout: () => Promise<void>;
 };
 
-const AUTH_URL = "/.auth/headless";
+// Get backend base URL: use full URL in production, relative path in development
+const getBackendBaseUrl = () => {
+  // In production (build time), use VITE_BACKEND_URL if available
+  // Vite replaces import.meta.env.VITE_* at build time
+  if (import.meta.env.VITE_BACKEND_URL) {
+    return import.meta.env.VITE_BACKEND_URL;
+  }
+  // In development, use empty string so relative paths work with Vite proxy
+  return "";
+};
+
+const AUTH_URL = `${getBackendBaseUrl()}/.auth/headless`;
 
 const ANON: Session = {
   authenticated: false,
