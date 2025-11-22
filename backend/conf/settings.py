@@ -366,8 +366,13 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_EXPOSE_HEADERS = ["X-Session-Token"]
 
 # Allow cookies to be sent cross-origin
-SESSION_COOKIE_SAMESITE = "Lax"
-SESSION_COOKIE_SECURE = False  # not DEBUG  # Require HTTPS in production
+# For cross-origin requests (frontend and backend on different domains), we need:
+# - SameSite=None (allows cross-origin cookies)
+# - Secure=True (required when SameSite=None)
+SESSION_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SECURE = True  # Required for SameSite=None
+CSRF_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SECURE = True
 
 
 #############################

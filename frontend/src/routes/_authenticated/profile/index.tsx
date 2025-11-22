@@ -130,7 +130,7 @@ export function ProfilePage() {
                     Company
                   </Text>
                   <TextField.Root
-                    defaultValue="Legal Ward"
+                    defaultValue="Unholster"
                     placeholder="Company"
                   />
                 </Box>
