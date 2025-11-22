@@ -1,6 +1,7 @@
 import { createFileRoute, Navigate, Outlet } from "@tanstack/react-router";
+import { Box } from "@seisveinte/react";
 import { useAuth } from "../services/auth";
-import Layout from "../components/Layout";
+import { Sidebar } from "../components/Sidebar";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedContent,
@@ -18,8 +19,11 @@ function AuthenticatedContent() {
   }
 
   return (
-    <Layout>
-      <Outlet />
-    </Layout>
+    <>
+      <Sidebar userEmail={session?.email || ""} />
+      <Box style={{ marginLeft: "250px" }}>
+        <Outlet />
+      </Box>
+    </>
   );
 }

@@ -36,7 +36,7 @@ type AllAuthConfig = {
   };
   emailLogin?: {
     id: string;
-    login: (email: string, password: string) => Promise<unknown>;
+    login: (email: string, password: string) => Promise<void>;
   };
 };
 
@@ -48,30 +48,7 @@ type AuthContextType = {
   logout: () => Promise<void>;
 };
 
-// Get backend base URL: use full URL in production if available, relative path in development
-// IMPORTANTE: En producción, VITE_BACKEND_URL o VITE_PROXY_BACKEND_URL DEBE estar configurada en Railway ANTES del build
-// Usa: VITE_BACKEND_URL=https://${{backend.RAILWAY_PUBLIC_DOMAIN}}
-// O: VITE_PROXY_BACKEND_URL=https://${{backend.RAILWAY_PUBLIC_DOMAIN}}
-const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_PROXY_BACKEND_URL || "";
-
-let AUTH_URL = "/.auth/headless";
-if (BACKEND_BASE_URL) {
-  AUTH_URL = `${BACKEND_BASE_URL}/.auth/headless`;
-} else if (import.meta.env.PROD) {
-  // En producción sin variables configuradas, mostrar error claro
-  console.error("❌ CRÍTICO: VITE_BACKEND_URL o VITE_PROXY_BACKEND_URL no está configurada!");
-  console.error("❌ Las requests relativas NO funcionarán en producción.");
-  console.error("❌ SOLUCIÓN: Ve a Railway UI → Frontend Service → Settings → Variables");
-  console.error("❌ Agrega: VITE_BACKEND_URL=https://${{backend.RAILWAY_PUBLIC_DOMAIN}}");
-  console.error("❌ O usa: VITE_PROXY_BACKEND_URL=https://${{backend.RAILWAY_PUBLIC_DOMAIN}}");
-  console.error("❌ Luego haz redeploy del frontend para que el build use la variable.");
-}
-
-console.log("🔧 AUTH_URL configured:", AUTH_URL);
-console.log("🔧 BACKEND_BASE_URL:", BACKEND_BASE_URL || "(undefined - requests fallarán en producción)");
-console.log("🔧 VITE_BACKEND_URL:", import.meta.env.VITE_BACKEND_URL || "(not set)");
-console.log("🔧 VITE_PROXY_BACKEND_URL:", import.meta.env.VITE_PROXY_BACKEND_URL || "(not set)");
-console.log("🔧 Is production:", import.meta.env.PROD);
+const AUTH_URL = "/.auth/headless";
 
 const ANON: Session = {
   authenticated: false,
@@ -142,176 +119,39 @@ export function AllAuthProvider({
   );
 
   useEffect(() => {
-    console.log("🔧 AllAuthProvider: Initializing, fetching config from:", configUrl);
-    console.log("🔧 Auth URL:", authUrl);
-    console.log("🔧 Is production?", import.meta.env.PROD);
-    console.log("🔧 VITE_BACKEND_URL:", import.meta.env.VITE_BACKEND_URL);
-    
     Promise.allSettled([
-      fetch(configUrl, {
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-        .then(async (res) => {
-          console.log("🔧 Config fetch response:", res.status, res.statusText);
-          console.log("🔧 Content-Type:", res.headers.get("Content-Type"));
-          
-          if (!res.ok) {
-            const text = await res.text();
-            console.error("❌ Config fetch failed - Response:", text.substring(0, 200));
-            throw new Error(`Config fetch failed: ${res.status} ${res.statusText}`);
-          }
-          
-          const contentType = res.headers.get("Content-Type") || "";
-          if (!contentType.includes("application/json")) {
-            const text = await res.text();
-            console.error("❌ Response is not JSON! Content-Type:", contentType);
-            console.error("❌ Response preview:", text.substring(0, 200));
-            throw new Error(`Expected JSON but got ${contentType}. This usually means the request went to the frontend instead of the backend. Check VITE_BACKEND_URL in production.`);
-          }
-          
-          return res.json();
-        })
-        .catch((error) => {
-          console.error("❌ Error fetching config:", error);
-          throw error;
-        }),
+      fetch(configUrl).then((res) => res.json()),
       updateSession(),
     ]).then((results) => {
       const configResult = results[0];
-      
-      // SIEMPRE marcar como configurado, incluso si falla
-      setIsConfigured(true);
-      
       if (configResult.status !== "fulfilled") {
-        console.error("❌ Config fetch failed:", configResult.reason);
-        // Aún así, habilitar email login como fallback
-        setConfig({
-          callbackUrl,
-          loginUrl: `${authUrl}/browser/v1/auth/login`,
-          emailLogin: {
-            id: "email",
-            login: (email: string, password: string) =>
-              fetch(`${authUrl}/browser/v1/auth/login`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                credentials: "include",
-                body: JSON.stringify({ email, password }),
-              }).then((res) => {
-                if (!res.ok) {
-                  return res.json().then((data) => {
-                    throw new Error(data.errors?.[0]?.message || `Login failed: ${res.status}`);
-                  });
-                }
-                return res.json();
-              }),
-          },
-        });
         return;
       }
-
-      const configData = configResult.value;
-      console.log("✅ Config data received:", configData);
-
-      if (configData?.data?.socialaccount?.providers?.[0]) {
-        console.log("🔧 Using social provider login");
+      if (configResult.value?.data?.socialaccount?.providers?.[0]) {
         setConfig({
-          ...configData.data,
-          callbackUrl,
-          loginUrl: `${authUrl}/browser/v1/auth/login`,
+          ...configResult.value?.data,
           providerLogin: {
-            id: configData.data.socialaccount.providers[0].id,
+            id: configResult.value?.data?.socialaccount?.providers?.[0]?.id,
             loginUrl: `${authUrl}/browser/v1/auth/provider/redirect`,
             callbackUrl,
           },
         });
       } else if (
-        configData?.data?.account?.login_methods?.includes("email")
+        configResult.value?.data?.account?.login_methods.includes("email")
       ) {
-        console.log("✅ Using email login");
         setConfig({
-          ...configData.data,
-          callbackUrl,
-          loginUrl: `${authUrl}/browser/v1/auth/login`,
+          ...configResult.value?.data,
           emailLogin: {
-            id: configData.data.account.login_methods[0] || "email",
+            id: configResult.value?.data?.account?.login_methods?.[0]?.id,
             login: (email: string, password: string) =>
               fetch(`${authUrl}/browser/v1/auth/login`, {
                 method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                credentials: "include",
                 body: JSON.stringify({ email, password }),
-              }).then((res) => {
-                if (!res.ok) {
-                  return res.json().then((data) => {
-                    throw new Error(data.errors?.[0]?.message || `Login failed: ${res.status}`);
-                  });
-                }
-                return res.json();
-              }),
-          },
-        });
-      } else {
-        console.warn("⚠️ No email login found in config, enabling fallback");
-        // Fallback: habilitar email login de todas formas
-        setConfig({
-          callbackUrl,
-          loginUrl: `${authUrl}/browser/v1/auth/login`,
-          emailLogin: {
-            id: "email",
-            login: (email: string, password: string) =>
-              fetch(`${authUrl}/browser/v1/auth/login`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                credentials: "include",
-                body: JSON.stringify({ email, password }),
-              }).then((res) => {
-                if (!res.ok) {
-                  return res.json().then((data) => {
-                    throw new Error(data.errors?.[0]?.message || `Login failed: ${res.status}`);
-                  });
-                }
-                return res.json();
-              }),
+              }).then((res) => res.json()),
           },
         });
       }
-    }).catch((error) => {
-      console.error("❌ Unexpected error in AllAuthProvider:", error);
-      // Asegurarse de que siempre se marque como configurado
       setIsConfigured(true);
-      // Habilitar login de email como último recurso
-      setConfig({
-        callbackUrl,
-        loginUrl: `${authUrl}/browser/v1/auth/login`,
-        emailLogin: {
-          id: "email",
-          login: (email: string, password: string) =>
-            fetch(`${authUrl}/browser/v1/auth/login`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              credentials: "include",
-              body: JSON.stringify({ email, password }),
-            }).then((res) => {
-              if (!res.ok) {
-                return res.json().then((data) => {
-                  throw new Error(data.errors?.[0]?.message || `Login failed: ${res.status}`);
-                });
-              }
-              return res.json();
-            }),
-        },
-      });
     });
   }, [authUrl, callbackUrl, configUrl, updateSession]);
 

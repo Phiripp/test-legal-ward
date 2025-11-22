@@ -1,37 +1,53 @@
-# Railway.toml - Multi-service deployment configuration
-# Docs: https://docs.railway.app/deploy/config-as-code
-#
-# ⚠️ IMPORTANTE: Este archivo SOLO funciona si los servicios están creados en Railway UI
-# con sus Root Directories configurados correctamente.
-#
-# Para cada servicio en Railway UI:
-# - Backend: Root Directory = "backend", Dockerfile Path = "docker/Dockerfile"
-# - Frontend: Root Directory = "frontend", Dockerfile Path = "docker/Dockerfile"
+# Railway configuration for test-legal-ward
+# This file configures how Railway builds and deploys each service
 
-# Global build configuration - Force Docker instead of Railpack
-[build]
+#=========================================#
+#===== BACKEND SERVICE ===================#
+#=========================================#
+[environments.production.backend]
+# Build configuration
 builder = "DOCKERFILE"
+dockerfilePath = "backend/docker/Dockerfile"
+dockerContext = "backend"
 
-# Backend service configuration
-[deploy.backend]
+# Port configuration
+[environments.production.backend.deploy]
 startCommand = "/entrypoint.sh"
-# Desactivar healthcheck temporalmente para debug
-# healthcheckPath = "/_health/"
-# healthcheckTimeout = 300
-restartPolicyType = "on_failure"
+restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 
-[deploy.backend.build]
-builder = "DOCKERFILE"
-dockerfilePath = "docker/Dockerfile"
-dockerContext = "."
+# Health check
+[environments.production.backend.deploy.healthcheck]
+path = "/"
+port = 8000
 
-# Frontend service configuration
-[deploy.frontend]
-startCommand = "serve -s dist -l $PORT"
-
-[deploy.frontend.build]
+#=========================================#
+#===== FRONTEND SERVICE ==================#
+#=========================================#
+[environments.production.frontend]
+# Build configuration
 builder = "DOCKERFILE"
-dockerfilePath = "docker/Dockerfile"
-dockerContext = "."
-dockerTarget = "runtime"
+dockerfilePath = "frontend/docker/Dockerfile"
+dockerContext = "frontend"
+
+# Use production stage
+[environments.production.frontend.build]
+buildTarget = "runtime"
+
+# Port configuration
+[environments.production.frontend.deploy]
+startCommand = "serve -s dist -l 3000"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+# Health check
+[environments.production.frontend.deploy.healthcheck]
+path = "/"
+port = 3000
+
+#=========================================#
+#===== DATABASE SERVICE ==================#
+#=========================================#
+# Note: PostgreSQL will be added through Railway's database service
+# You'll need to add a PostgreSQL database through the Railway UI
+# and link it to the backend service

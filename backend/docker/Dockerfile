@@ -63,7 +63,4 @@ CMD [ "/entrypoint.sh" ]
 
 COPY . .
 
-# Railway provides PORT dynamically, but we expose a range for compatibility
-# Railway will route to whatever port the process listens on
 EXPOSE 8000
-EXPOSE 8080

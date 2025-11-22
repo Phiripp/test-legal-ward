@@ -1,8 +1,0 @@
-# Railway ignore file
-# This tells Railway to ignore these directories when analyzing the root
-local/
-lovable/
-scripts/
-*.md
-.gitignore
-
