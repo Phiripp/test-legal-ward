@@ -49,20 +49,29 @@ type AuthContextType = {
 };
 
 // Get backend base URL: use full URL in production if available, relative path in development
-// IMPORTANTE: En producción, VITE_BACKEND_URL DEBE estar configurada en Railway antes del build
-const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_URL || "";
-const AUTH_URL = BACKEND_BASE_URL 
-  ? `${BACKEND_BASE_URL}/.auth/headless` 
-  : "/.auth/headless";
+// IMPORTANTE: En producción, VITE_BACKEND_URL o VITE_PROXY_BACKEND_URL DEBE estar configurada en Railway ANTES del build
+// Usa: VITE_BACKEND_URL=https://${{backend.RAILWAY_PUBLIC_DOMAIN}}
+// O: VITE_PROXY_BACKEND_URL=https://${{backend.RAILWAY_PUBLIC_DOMAIN}}
+const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_PROXY_BACKEND_URL || "";
 
-if (import.meta.env.PROD && !BACKEND_BASE_URL) {
-  console.warn("⚠️ VITE_BACKEND_URL no está configurada en producción!");
-  console.warn("⚠️ Las requests relativas NO funcionarán en producción sin proxy.");
-  console.warn("⚠️ Configura VITE_BACKEND_URL=https://tu-backend.up.railway.app en Railway antes del build.");
+let AUTH_URL = "/.auth/headless";
+if (BACKEND_BASE_URL) {
+  AUTH_URL = `${BACKEND_BASE_URL}/.auth/headless`;
+} else if (import.meta.env.PROD) {
+  // En producción sin variables configuradas, mostrar error claro
+  console.error("❌ CRÍTICO: VITE_BACKEND_URL o VITE_PROXY_BACKEND_URL no está configurada!");
+  console.error("❌ Las requests relativas NO funcionarán en producción.");
+  console.error("❌ SOLUCIÓN: Ve a Railway UI → Frontend Service → Settings → Variables");
+  console.error("❌ Agrega: VITE_BACKEND_URL=https://${{backend.RAILWAY_PUBLIC_DOMAIN}}");
+  console.error("❌ O usa: VITE_PROXY_BACKEND_URL=https://${{backend.RAILWAY_PUBLIC_DOMAIN}}");
+  console.error("❌ Luego haz redeploy del frontend para que el build use la variable.");
 }
 
 console.log("🔧 AUTH_URL configured:", AUTH_URL);
-console.log("🔧 BACKEND_BASE_URL:", BACKEND_BASE_URL || "(using relative path - solo funciona en dev con Vite proxy)");
+console.log("🔧 BACKEND_BASE_URL:", BACKEND_BASE_URL || "(undefined - requests fallarán en producción)");
+console.log("🔧 VITE_BACKEND_URL:", import.meta.env.VITE_BACKEND_URL || "(not set)");
+console.log("🔧 VITE_PROXY_BACKEND_URL:", import.meta.env.VITE_PROXY_BACKEND_URL || "(not set)");
+console.log("🔧 Is production:", import.meta.env.PROD);
 
 const ANON: Session = {
   authenticated: false,

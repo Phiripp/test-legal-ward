@@ -27,6 +27,15 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
+
+# Build arguments para variables de entorno en tiempo de build
+ARG VITE_BACKEND_URL
+ARG VITE_PROXY_BACKEND_URL
+
+# Exportar como variables de entorno para que Vite las vea durante el build
+ENV VITE_BACKEND_URL=${VITE_BACKEND_URL}
+ENV VITE_PROXY_BACKEND_URL=${VITE_PROXY_BACKEND_URL}
+
 RUN pnpm run build
 
 #######################
