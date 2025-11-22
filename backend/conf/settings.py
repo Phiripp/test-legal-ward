@@ -273,7 +273,8 @@ FIXTURE_DIRS = (str(APPS_DIR / "fixtures"),) if (APPS_DIR / "fixtures").exists()
 # SECURITY
 #############################
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = not DEBUG  # Require HTTPS in production/staging
+SESSION_COOKIE_SECURE = True  # Requerido para SameSite=None en producción
+SESSION_COOKIE_SAMESITE = "None"  # Permite cookies cross-origin
 X_FRAME_OPTIONS = "DENY"
 SECURE_SSL_REDIRECT = django_config.SECURE_SSL_REDIRECT
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -367,9 +368,7 @@ CORS_EXPOSE_HEADERS = ["X-Session-Token"]
 CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]
 CORS_ALLOW_HEADERS = ["*"]
 
-# Allow cookies to be sent cross-origin
-SESSION_COOKIE_SAMESITE = "Lax"
-# SESSION_COOKIE_SECURE is set above in SECURITY section
+# Session cookie configuration is set above in SECURITY section
 
 
 #############################
