@@ -103,13 +103,17 @@ export function AllAuthProvider({
             console.error(`[Auth] Respuesta no es JSON. Content-Type: ${contentType}, Body: ${text.substring(0, 200)}`);
             throw new Error(`Expected JSON but got ${contentType}`);
           }
-          
+
           const data = await res.json();
           console.log(`[Auth] Datos de sesión recibidos:`, data);
           setSession({
             ...data,
             authenticated: true,
           });
+        } else if (res.status === 401) {
+          // 401 is expected when not authenticated
+          console.log(`[Auth] No active session (401 - not authenticated)`);
+          setSession(ANON);
         } else {
           const errorText = await res.text().catch(() => "No se pudo leer el error");
           console.warn(`[Auth] Session check failed with status ${res.status}:`, errorText);
