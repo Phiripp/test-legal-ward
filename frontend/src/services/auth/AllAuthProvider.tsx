@@ -81,25 +81,42 @@ export function AllAuthProvider({
   const sessionUrl = `${authUrl}/browser/v1/auth/session`;
 
   const updateSession = useMemo(
-    () => async () =>
-      await fetch(sessionUrl, {
-        credentials: "include",
-      })
-        .then((res) => {
-          if (res.status === 200) {
-            return res.json();
+    () => async () => {
+      try {
+
+        console.log(`[Auth] Verificando sesión en: ${sessionUrl}`);
+        const res = await fetch(sessionUrl, {
+          credentials: "include",
+        });
+        
+        console.log(`[Auth] Respuesta de sesión: status=${res.status}, ok=${res.ok}, contentType=${res.headers.get("content-type")}`);
+        
+        if (res.status === 200) {
+          const contentType = res.headers.get("content-type");
+          if (!contentType || !contentType.includes("application/json")) {
+            const text = await res.text();
+            console.error(`[Auth] Respuesta no es JSON. Content-Type: ${contentType}, Body: ${text.substring(0, 200)}`);
+            throw new Error(`Expected JSON but got ${contentType}`);
           }
-          throw new Error("Not authenticated");
-        })
-        .then((data) =>
+          
+          const data = await res.json();
+          console.log(`[Auth] Datos de sesión recibidos:`, data);
           setSession({
             ...data,
             authenticated: true,
-          })
-        )
-        .catch(() => {
+          });
+        } else {
+          const errorText = await res.text().catch(() => "No se pudo leer el error");
+          console.warn(`[Auth] Session check failed with status ${res.status}:`, errorText);
           setSession(ANON);
-        }),
+          throw new Error(`Session check failed: ${res.status} ${errorText}`);
+        }
+      } catch (error) {
+        console.error("[Auth] Error fetching session:", error);
+        setSession(ANON);
+        throw error;
+      }
+    },
     [sessionUrl]
   );
 

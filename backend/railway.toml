@@ -10,7 +10,7 @@ restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 
 [deploy.healthcheck]
-path = "/"
+path = "/_health/"
 port = 8000
 
 # Watch only backend directory to avoid rebuilds on frontend changes
