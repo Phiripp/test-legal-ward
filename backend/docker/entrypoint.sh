@@ -70,11 +70,32 @@ python -c "import wsgi; print('✅ WSGI module imported successfully')" || {
 
 # Start Gunicorn
 echo "🚀 Executing Gunicorn..."
-exec gunicorn wsgi:application \
+echo "📡 Gunicorn will listen on: 0.0.0.0:$PORT"
+echo "⏳ Starting server..."
+
+# Start Gunicorn in background first to verify it starts
+gunicorn wsgi:application \
     --bind 0.0.0.0:$PORT \
     --workers 3 \
     --timeout 120 \
     --access-logfile - \
     --error-logfile - \
     --log-level info \
-    --capture-output
+    --capture-output \
+    --preload &
+GUNICORN_PID=$!
+
+# Wait a moment for Gunicorn to start
+sleep 2
+
+# Check if Gunicorn is still running
+if ! kill -0 $GUNICORN_PID 2>/dev/null; then
+    echo "❌ ERROR: Gunicorn process died immediately!"
+    exit 1
+fi
+
+echo "✅ Gunicorn started successfully (PID: $GUNICORN_PID)"
+echo "🌐 Server is ready and listening on 0.0.0.0:$PORT"
+
+# Wait for Gunicorn to finish (this will block)
+wait $GUNICORN_PID
