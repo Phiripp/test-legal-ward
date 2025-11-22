@@ -1,9 +1,12 @@
 # Railway.toml - Multi-service deployment configuration
 # Docs: https://docs.railway.app/deploy/config-as-code
 #
-# IMPORTANTE: Este archivo requiere que crees los servicios desde la UI de Railway
-# con sus Root Directories configurados. Railway no puede detectar automáticamente
-# proyectos multi-servicio desde el root.
+# ⚠️ IMPORTANTE: Este archivo SOLO funciona si los servicios están creados en Railway UI
+# con sus Root Directories configurados correctamente.
+#
+# Para cada servicio en Railway UI:
+# - Backend: Root Directory = "backend", Dockerfile Path = "docker/Dockerfile"
+# - Frontend: Root Directory = "frontend", Dockerfile Path = "docker/Dockerfile"
 
 # Backend service configuration
 [deploy.backend]

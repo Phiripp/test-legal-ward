@@ -117,15 +117,40 @@ railway run --service backend python manage.py createsuperuser
 
 ## Troubleshooting
 
-### Error: "Dockerfile not found"
-- Verifica que el **Root Directory** esté configurado correctamente
-- Verifica que el **Dockerfile Path** sea relativo al Root Directory
-- Para backend: Root Directory = `backend`, Dockerfile Path = `docker/Dockerfile`
-- Para frontend: Root Directory = `frontend`, Dockerfile Path = `docker/Dockerfile`
+### Error: "Dockerfile `Dockerfile` does not exist"
+
+Este error significa que Railway está buscando el Dockerfile en el **root** del repositorio en lugar del directorio del servicio.
+
+**Solución paso a paso:**
+
+1. **Ve a Railway UI** → Tu proyecto → El servicio que está fallando
+2. **Settings** → **Source** (o **Deploy**)
+3. **Verifica/Configura:**
+   - **Root Directory**: Debe ser `backend` (para backend) o `frontend` (para frontend)
+   - **Dockerfile Path**: Debe ser `docker/Dockerfile` (relativo al Root Directory)
+4. **Guarda los cambios**
+5. **Trigger un nuevo deploy** (Settings → Deploy → Redeploy)
+
+**Si el servicio no tiene la opción "Root Directory":**
+- Elimina el servicio actual
+- Crea un nuevo servicio desde cero
+- Al crear el servicio, busca la opción **"Configure"** o **"Advanced"** antes de hacer deploy
+- Ahí podrás configurar el Root Directory
+
+**Verificación rápida:**
+- Si ves el error `Dockerfile 'Dockerfile' does not exist`, significa que Railway está buscando en el root
+- El Root Directory NO está configurado o está vacío
+- Configúralo y vuelve a intentar
 
 ### Error: "Railpack could not determine"
 - Este error aparece cuando intentas deployar desde el root sin Root Directory
 - **Solución**: Crea servicios separados con Root Directory configurado
+
+### Error: "Dockerfile not found" (otra variante)
+- Verifica que el **Root Directory** esté configurado correctamente
+- Verifica que el **Dockerfile Path** sea relativo al Root Directory
+- Para backend: Root Directory = `backend`, Dockerfile Path = `docker/Dockerfile`
+- Para frontend: Root Directory = `frontend`, Dockerfile Path = `docker/Dockerfile`
 
 ### Frontend no se conecta al backend
 - Verifica que `VITE_API_URL` tenga la URL correcta del backend
