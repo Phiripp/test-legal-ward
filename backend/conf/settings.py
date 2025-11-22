@@ -162,6 +162,7 @@ INSTALLED_APPS = [
     ############################
     "apps.users",
     "apps.auditlog",
+    "apps.proyectos_ley",
     "apps.conflict_detector",
 ]
 

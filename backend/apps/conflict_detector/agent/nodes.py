@@ -1,23 +1,20 @@
 """Nodos del grafo del agente de detección de conflictos."""
 
-import json
 import time
-from pathlib import Path
 
 import numpy as np
+from django.conf import settings
 from openai import OpenAI
 
+from .llm_map import llm_map
 from .models import (
     ConflictoDetectado,
     ImpactoConflicto,
     ProyectoLey,
     ProyectoLeyImpacto,
 )
-from .prompts import MAP_EXTRACCION_MATRICES, CONSOLIDACION_DESCRIPCIONES
+from .prompts import CONSOLIDACION_DESCRIPCIONES, MAP_EXTRACCION_MATRICES
 from .state import ConflictDetectorState
-from django.conf import settings
-from .llm_map import llm_map
-
 
 # Variables globales de configuración
 SIMILITUD_THRESHOLD = 0.4
@@ -103,33 +100,46 @@ def generar_embeddings(textos: list[str], batch_size: int = 100) -> list[list[fl
 
 def load_proyectos_ley() -> list[ProyectoLey]:
     """
-    Carga los proyectos de ley desde los archivos JSON en data/proyectos_ley/.
+    Carga los proyectos de ley desde la base de datos.
 
     Returns:
-        Lista de proyectos de ley cargados
+        Lista de proyectos de ley cargados como modelos Pydantic
     """
+    from apps.proyectos_ley.models import ProyectoLey as ProyectoLeyDB
+
+    from .models import Articulo as ArticuloPydantic
+
     proyectos = []
-    # Buscar el directorio data/proyectos_ley desde la raíz del backend
-    # El path se construye desde el paquete hacia arriba hasta encontrar el backend
-    backend_root = Path(__file__).parent.parent.parent.parent
 
-    proyectos_dir = backend_root / "data" / "proyectos_ley"
-    print("proyectos_dir: ", proyectos_dir)
+    # Obtener todos los proyectos de ley con sus artículos
+    proyectos_db = ProyectoLeyDB.objects.prefetch_related("articulos").all()
 
-    if not proyectos_dir.exists():
-        return proyectos
+    for proyecto_db in proyectos_db:
+        # Convertir artículos de Django a Pydantic
+        articulos_pydantic = [
+            ArticuloPydantic(
+                numero=articulo.numero,
+                tipo=articulo.tipo,
+                texto=articulo.texto,
+                descripcion_semantica=articulo.descripcion_semantica,
+            )
+            for articulo in proyecto_db.articulos.all()
+        ]
 
-    for json_file in proyectos_dir.glob("*.json"):
-        try:
-            with open(json_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                proyecto = ProyectoLey(**data)
-                proyectos.append(proyecto)
-        except Exception as e:
-            # Si hay un error al cargar un archivo, lo ignoramos y continuamos
-            print(f"Error al cargar {json_file}: {e}")
-            continue
+        # Crear el modelo Pydantic del proyecto
+        proyecto = ProyectoLey(
+            id=proyecto_db.proyecto_id,
+            titulo=proyecto_db.titulo,
+            camara_origen=proyecto_db.camara_origen,
+            tipo_proyecto=proyecto_db.tipo_proyecto,
+            etapa=proyecto_db.etapa,
+            urgencia_actual=proyecto_db.urgencia_actual,
+            fecha=proyecto_db.fecha.isoformat(),
+            articulos=articulos_pydantic,
+        )
+        proyectos.append(proyecto)
 
+    print(f"Cargados {len(proyectos)} proyectos de ley desde la base de datos")
     return proyectos
 
 
