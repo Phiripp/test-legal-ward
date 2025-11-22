@@ -8,6 +8,10 @@
 # - Backend: Root Directory = "backend", Dockerfile Path = "docker/Dockerfile"
 # - Frontend: Root Directory = "frontend", Dockerfile Path = "docker/Dockerfile"
 
+# Global build configuration - Force Docker instead of Railpack
+[build]
+builder = "DOCKERFILE"
+
 # Backend service configuration
 [deploy.backend]
 startCommand = "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn wsgi:application --bind 0.0.0.0:$PORT"
