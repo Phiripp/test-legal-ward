@@ -1,6 +1,5 @@
 """Modelos para el agente de detección de conflictos."""
 
-
 from pydantic import BaseModel, Field
 
 
@@ -72,3 +71,4 @@ class ProyectoLeyImpacto(BaseModel):
     proyecto_id: str
     proyecto_titulo: str
     impactos: list[ImpactoConflicto]
+    descripcion_impacto_consolidada: str | None = None

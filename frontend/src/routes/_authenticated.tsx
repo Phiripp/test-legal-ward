@@ -20,7 +20,7 @@ function AuthenticatedContent() {
 
   return (
     <>
-      <Sidebar userEmail={session?.email || ""} />
+      <Sidebar />
       <Box style={{ marginLeft: "250px" }}>
         <Outlet />
       </Box>
