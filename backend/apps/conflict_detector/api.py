@@ -24,8 +24,8 @@ async def detect_conflicts_endpoint(request, file: UploadedFile = File(...)):
     Recibe un archivo PDF y retorna el resultado del análisis del agente.
     Los conflictos están organizados por proyecto y artículo, indicando las páginas con conflicto.
     """
-    # Leer el contenido del archivo PDF
-    pdf_content = await file.read()
+    # Leer el contenido del archivo PDF (read() es síncrono, no necesita await)
+    pdf_content = file.read()
 
     # Procesar el PDF y detectar conflictos
     result = await detect_conflicts(pdf_content)
@@ -34,4 +34,3 @@ async def detect_conflicts_endpoint(request, file: UploadedFile = File(...)):
         conflictos=result["conflictos"],
         total_conflictos=result["total_conflictos"],
     )
-

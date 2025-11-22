@@ -57,3 +57,25 @@ list-layers:
             echo "${layer_name}: not installed"
         fi
     done
+
+# Construir la imagen Docker del backend
+team-build:
+    #!/usr/bin/env sh
+    echo "🔨 Construyendo imagen Docker del backend..."
+    docker build -f Dockerfile.backend -t backend:latest .
+    echo "✅ Build completado"
+
+# Iniciar los servicios con docker-compose
+up:
+    #!/usr/bin/env sh
+    cd local && docker-compose up -d
+
+# Detener los servicios
+down:
+    #!/usr/bin/env sh
+    cd local && docker-compose down
+
+# Ver logs de los servicios
+logs:
+    #!/usr/bin/env sh
+    cd local && docker-compose logs -f

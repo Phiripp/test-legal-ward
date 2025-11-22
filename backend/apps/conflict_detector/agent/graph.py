@@ -68,20 +68,20 @@ def run_agent(document_pages: list[str]) -> dict:
     agent = create_agent()
     initial_state = ConflictDetectorState(document_pages=document_pages)
     result = agent.invoke(initial_state)
+    print("result: ", result)
 
     # LangGraph puede retornar un dict o el objeto, manejamos ambos casos
-    if isinstance(result, dict):
-        conflictos = result.get("conflictos", [])
-        resultado_texto = result.get("result", "") or ""
-    else:
-        conflictos = result.conflictos
-        resultado_texto = result.result or ""
+    print("results.keys(): ", result.keys())
+    conflictos = result["conflictos"]
+    proyecto_ley_impacto = result["proyecto_ley_impacto"]
+    print("proyecto_ley_impacto: ", proyecto_ley_impacto)
+    print("conflictos: ", conflictos)
 
     # Formatear conflictos por proyecto y artículo
     conflictos_formateados = format_conflictos_output(conflictos)
 
     return {
-        "resultado": resultado_texto,
+        "resultado": proyecto_ley_impacto.impactos[0].descripcion_impacto,
         "conflictos": conflictos_formateados,
         "total_conflictos": len(conflictos),
     }

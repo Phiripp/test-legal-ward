@@ -26,6 +26,7 @@ _client = None
 
 def get_openai_client() -> OpenAI:
     """Obtiene o crea el cliente de OpenAI."""
+    print("settings.PROJECT_OPENAI_API_KEY: ", settings.PROJECT_OPENAI_API_KEY)
     global _client
     _client = OpenAI(api_key=settings.PROJECT_OPENAI_API_KEY)
     return _client
@@ -59,9 +60,23 @@ def generar_embeddings(textos: list[str], batch_size: int = 100) -> list[list[fl
     client = get_openai_client()
     embeddings = []
 
+    # Filtrar y validar textos antes de procesar
+    textos_validos = []
+    indices_validos = []
+    
+    for idx, texto in enumerate(textos):
+        # Validar que el texto sea string, no None, y no esté vacío
+        if isinstance(texto, str) and texto.strip():
+            textos_validos.append(texto)
+            indices_validos.append(idx)
+        else:
+            # Para textos inválidos, usar un espacio como placeholder
+            textos_validos.append(" ")
+            indices_validos.append(idx)
+
     # Procesar en lotes para manejar rate limits
-    for i in range(0, len(textos), batch_size):
-        batch = textos[i : i + batch_size]
+    for i in range(0, len(textos_validos), batch_size):
+        batch = textos_validos[i : i + batch_size]
 
         try:
             response = client.embeddings.create(
@@ -92,20 +107,10 @@ def load_proyectos_ley() -> list[ProyectoLey]:
     proyectos = []
     # Buscar el directorio data/proyectos_ley desde la raíz del backend
     # El path se construye desde el paquete hacia arriba hasta encontrar el backend
-    current_path = Path(__file__).parent
-    backend_root = None
-
-    # Buscar hacia arriba hasta encontrar el directorio backend
-    for parent in current_path.parents:
-        if parent.name == "backend" and (parent / "data" / "proyectos_ley").exists():
-            backend_root = parent
-            break
-
-    if backend_root is None:
-        # Si no encontramos el backend, intentar desde la raíz del workspace
-        backend_root = current_path.parent.parent.parent.parent.parent
+    backend_root = Path(__file__).parent.parent.parent.parent
 
     proyectos_dir = backend_root / "data" / "proyectos_ley"
+    print("proyectos_dir: ", proyectos_dir)
 
     if not proyectos_dir.exists():
         return proyectos
@@ -153,27 +158,59 @@ def detectar_conflictos(
     if not articulos_con_proyecto or not document_pages:
         return []
 
-    # Generar embeddings para páginas
-    print(f"Generando embeddings para {len(document_pages)} páginas...")
-    embeddings_paginas = generar_embeddings(document_pages)
-    embeddings_paginas_np = np.array(embeddings_paginas)
+    # Filtrar páginas vacías antes de generar embeddings
+    paginas_validas = []
+    indices_paginas_validas = []
+    for idx, pagina in enumerate(document_pages):
+        if isinstance(pagina, str) and pagina.strip():
+            paginas_validas.append(pagina)
+            indices_paginas_validas.append(idx)
+    
+    if not paginas_validas:
+        print("No hay páginas válidas para procesar")
+        return []
 
-    # Generar embeddings para artículos
-    textos_articulos = [item["articulo"].descripcion_semantica for item in articulos_con_proyecto]
+    # Generar embeddings para páginas válidas
+    print(f"Generando embeddings para {len(paginas_validas)} páginas válidas (de {len(document_pages)} totales)...")
+    embeddings_paginas = generar_embeddings(paginas_validas)
+    embeddings_paginas_np = np.array(embeddings_paginas)
+    print("embeddings_paginas_np: ", embeddings_paginas_np)
+
+    # Generar embeddings para artículos (filtrar artículos con descripcion_semantica vacía)
+    articulos_validos = []
+    textos_articulos = []
+    for item in articulos_con_proyecto:
+        desc_sem = item["articulo"].descripcion_semantica
+        # Filtrar artículos con descripcion_semantica vacía o inválida
+        if isinstance(desc_sem, str) and desc_sem.strip():
+            textos_articulos.append(desc_sem)
+            articulos_validos.append(item)
+        else:
+            # Si no hay descripción semántica válida, usar el texto del artículo como fallback
+            texto_articulo = item["articulo"].texto
+            if isinstance(texto_articulo, str) and texto_articulo.strip():
+                textos_articulos.append(texto_articulo)
+                articulos_validos.append(item)
+    
+    if not textos_articulos:
+        print("No hay artículos válidos para procesar")
+        return []
+    
     print(f"Generando embeddings para {len(textos_articulos)} artículos...")
     embeddings_articulos = generar_embeddings(textos_articulos)
     embeddings_articulos_np = np.array(embeddings_articulos)
-
-    # Comparar cada página con cada artículo
+    print("embeddings_articulos_np: ", embeddings_articulos_np)
+    # Comparar cada página válida con cada artículo
     conflictos = []
 
-    for pagina_num, pagina_text in enumerate(document_pages):
-        embedding_pagina = embeddings_paginas_np[pagina_num]
+    for idx, pagina_num_original in enumerate(indices_paginas_validas):
+        pagina_text = paginas_validas[idx]
+        embedding_pagina = embeddings_paginas_np[idx]
 
-        # Calcular similitud con todos los artículos
+        # Calcular similitud con todos los artículos válidos
         similitudes_articulos = []
-        for idx, item in enumerate(articulos_con_proyecto):
-            embedding_articulo = embeddings_articulos_np[idx]
+        for art_idx, item in enumerate(articulos_validos):
+            embedding_articulo = embeddings_articulos_np[art_idx]
             similitud = similitud_coseno(embedding_pagina, embedding_articulo)
 
             similitudes_articulos.append(
@@ -202,13 +239,14 @@ def detectar_conflictos(
                 proyecto_titulo=item["proyecto_titulo"],
                 articulo_numero=item["articulo"].numero,
                 articulo_tipo=item["articulo"].tipo,
-                pagina_numero=pagina_num,
+                pagina_numero=pagina_num_original,  # Usar el número de página original
                 similitud=item["similitud"],
                 pagina_texto=pagina_text,
                 articulo_texto=item["articulo"].texto,
             )
             conflictos.append(conflicto)
 
+    print("conflictos: ", conflictos)
     return conflictos
 
 
@@ -248,26 +286,59 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
     Detecta conflictos comparando cada página con cada artículo.
     """
     document_pages = state.document_pages
+    print("document_pages: ", document_pages)
 
     # Cargar proyectos de ley
     proyectos_ley = load_proyectos_ley()
-
+    print("proyectos_ley: ", proyectos_ley)
     # Extraer artículos distintos
     articulos_distintos = [
         articulo for proyecto in proyectos_ley for articulo in proyecto.articulos
     ]
-
+    print("articulos_distintos: ", articulos_distintos)
     # Detectar conflictos
     conflictos = detectar_conflictos(document_pages, proyectos_ley)
     
     # Calcular impacto de los conflictos usando LLM
+    print("conflictos: ", conflictos)
     conflictos_impacto = calcular_impacto_conflictos(conflictos)
+    print("conflictos_impacto: ", conflictos_impacto)
 
-    proyecto_ley_impacto = ProyectoLeyImpacto(
-        proyecto_id=conflictos_impacto.map_results[0].proyecto_id,
-        proyecto_titulo=conflictos_impacto.map_results[0].proyecto_titulo,
-        impactos=conflictos_impacto.map_results,
-    )
+    # Combinar conflictos originales con impactos calculados y agrupar por proyecto
+    proyecto_ley_impacto = None
+    print("conflictos: ", conflictos)
+    print("conflictos_impacto.map_results: ", conflictos_impacto.map_results)
+    
+    if conflictos and conflictos_impacto.map_results:
+        # Crear un diccionario para agrupar impactos por proyecto
+        proyectos_impacto = {}
+        
+        # Combinar cada conflicto con su impacto correspondiente
+        for conflicto, impacto in zip(conflictos, conflictos_impacto.map_results):
+            print("conflicto.proyecto_id: ", conflicto.proyecto_id)
+            print("conflicto.proyecto_titulo: ", conflicto.proyecto_titulo)
+            print("impacto: ", impacto)
+            proyecto_id = conflicto.proyecto_id
+            proyecto_titulo = conflicto.proyecto_titulo
+            
+            if proyecto_id not in proyectos_impacto:
+                proyectos_impacto[proyecto_id] = {
+                    "proyecto_id": proyecto_id,
+                    "proyecto_titulo": proyecto_titulo,
+                    "impactos": []
+                }
+            
+            proyectos_impacto[proyecto_id]["impactos"].append(impacto)
+        
+        # Si hay al menos un proyecto, usar el primero (o podríamos retornar una lista)
+        print("proyectos_impacto: ", proyectos_impacto)
+        if proyectos_impacto:
+            primer_proyecto = next(iter(proyectos_impacto.values()))
+            proyecto_ley_impacto = ProyectoLeyImpacto(
+                proyecto_id=primer_proyecto["proyecto_id"],
+                proyecto_titulo=primer_proyecto["proyecto_titulo"],
+                impactos=primer_proyecto["impactos"],
+            )
 
     # Actualizar el estado
     state.proyectos_ley = proyectos_ley
@@ -275,4 +346,5 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
     state.conflictos = conflictos
     state.proyecto_ley_impacto = proyecto_ley_impacto
 
+    print("state: ", state)
     return state
