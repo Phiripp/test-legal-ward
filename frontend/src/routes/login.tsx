@@ -97,8 +97,6 @@ function EmailPasswordLogin({
 
     try {
       const data = await login(email, password);
-      console.log("Login response:", data);
-      
       if (data && typeof data === 'object' && 'errors' in data) {
         const errorData = data as { errors?: { message: string }[] };
         if (errorData.errors && errorData.errors.length > 0) {
@@ -123,6 +121,9 @@ function EmailPasswordLogin({
         Enter your credentials to access
       </Text>
       <form onSubmit={handleSubmit} style={{ width: "100%" }}>
+        <input type="hidden" name="provider" value="amazon_cognito" />
+        <input type="hidden" name="callback_url" value="/" />
+        <input type="hidden" name="process" value="login" />
         <Flex direction="column" gap="4">
           <Box>
             <input
