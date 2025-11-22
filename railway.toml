@@ -1,9 +1,6 @@
 # Railway.toml - Multi-service deployment configuration
 # Docs: https://docs.railway.app/deploy/config-as-code
 
-[build]
-builder = "dockerfile"
-
 # Backend service configuration
 [deploy.backend]
 startCommand = "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn wsgi:application --bind 0.0.0.0:$PORT"
@@ -13,7 +10,8 @@ restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 
 [deploy.backend.build]
-dockerfilePath = "backend/docker/Dockerfile"
+builder = "dockerfile"
+dockerfilePath = "docker/Dockerfile"
 dockerContext = "backend"
 
 # Frontend service configuration
@@ -21,6 +19,7 @@ dockerContext = "backend"
 startCommand = "serve -s dist -l $PORT"
 
 [deploy.frontend.build]
-dockerfilePath = "frontend/docker/Dockerfile"
+builder = "dockerfile"
+dockerfilePath = "docker/Dockerfile"
 dockerContext = "frontend"
 dockerTarget = "runtime"
