@@ -48,9 +48,12 @@ type AuthContextType = {
   logout: () => Promise<void>;
 };
 
+// Backend URL from environment variable
 const AUTH_URL = import.meta.env.VITE_BACKEND_URL
   ? `${import.meta.env.VITE_BACKEND_URL}/.auth/headless`
   : "/.auth/headless";
+
+console.log('[AllAuth] Using backend URL:', import.meta.env.VITE_BACKEND_URL || 'relative path (development)');
 
 const ANON: Session = {
   authenticated: false,
