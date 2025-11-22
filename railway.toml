@@ -1,53 +1,12 @@
 # Railway configuration for test-legal-ward
-# This file configures how Railway builds and deploys each service
+# Backend service configuration
 
-#=========================================#
-#===== BACKEND SERVICE ===================#
-#=========================================#
-[environments.production.backend]
-# Build configuration
+[build]
 builder = "DOCKERFILE"
 dockerfilePath = "backend/docker/Dockerfile"
 dockerContext = "backend"
 
-# Port configuration
-[environments.production.backend.deploy]
+[deploy]
 startCommand = "/entrypoint.sh"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
-
-# Health check
-[environments.production.backend.deploy.healthcheck]
-path = "/"
-port = 8000
-
-#=========================================#
-#===== FRONTEND SERVICE ==================#
-#=========================================#
-[environments.production.frontend]
-# Build configuration
-builder = "DOCKERFILE"
-dockerfilePath = "frontend/docker/Dockerfile"
-dockerContext = "frontend"
-
-# Use production stage
-[environments.production.frontend.build]
-buildTarget = "runtime"
-
-# Port configuration
-[environments.production.frontend.deploy]
-startCommand = "serve -s dist -l 3000"
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 10
-
-# Health check
-[environments.production.frontend.deploy.healthcheck]
-path = "/"
-port = 3000
-
-#=========================================#
-#===== DATABASE SERVICE ==================#
-#=========================================#
-# Note: PostgreSQL will be added through Railway's database service
-# You'll need to add a PostgreSQL database through the Railway UI
-# and link it to the backend service
