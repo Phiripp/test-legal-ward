@@ -149,16 +149,32 @@ export function AllAuthProvider({
         return;
       }
 
-      const configData = configResult.value?.data;
-      console.log("Config data:", configData);
+      const configData = configResult.value;
+      console.log("Full config response:", JSON.stringify(configResult.value, null, 2));
+      
+      // Try multiple possible response structures
+      const accountData = configData?.account || configData?.data?.account || configData?.data;
+      const loginMethods = accountData?.login_methods || [];
+      
+      console.log("Account data:", accountData);
+      console.log("Login methods:", loginMethods);
+      console.log("Is array?", Array.isArray(loginMethods));
+      console.log("Includes email?", loginMethods.includes("email"));
 
-      // Only support email login, ignore social providers
-      if (configData?.account?.login_methods?.includes("email")) {
+      // Always enable email login if backend responds (even if structure is unexpected)
+      // This is a fallback - the backend is configured for email login
+      const hasEmailLogin = Array.isArray(loginMethods) && loginMethods.includes("email");
+      
+      if (hasEmailLogin || loginMethods.length === 0) {
+        // Enable email login - backend supports it based on ACCOUNT_LOGIN_METHODS = {"email"}
         setConfig({
           emailLogin: {
-            id: configData.account?.login_methods?.[0] || "email",
+            id: "email",
             login: async (email: string, password: string) => {
-              const response = await fetch(`${authUrl}/browser/v1/auth/login`, {
+              const loginUrl = `${authUrl}/browser/v1/auth/login`;
+              console.log("Attempting login to:", loginUrl, "with email:", email);
+              
+              const response = await fetch(loginUrl, {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
@@ -167,17 +183,26 @@ export function AllAuthProvider({
                 body: JSON.stringify({ email, password }),
               });
               
+              console.log("Login response status:", response.status, response.statusText);
+              
               if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
+                console.error("Login error data:", errorData);
                 throw new Error(errorData.errors?.[0]?.message || `Login failed: ${response.status}`);
               }
               
-              return response.json();
+              const result = await response.json();
+              console.log("Login success:", result);
+              return result;
             },
           },
         });
       } else {
-        console.warn("Email login not available in config");
+        console.error("Email login not available. Config structure:", {
+          configData,
+          accountData,
+          loginMethods: loginMethods,
+        });
       }
       
       setIsConfigured(true);
