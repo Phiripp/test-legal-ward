@@ -71,3 +71,4 @@ class ProyectoLeyImpacto(BaseModel):
     proyecto_id: str
     proyecto_titulo: str
     impactos: list[ImpactoConflicto]
+    descripcion_impacto_consolidada: str | None = None

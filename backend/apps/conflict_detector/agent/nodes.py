@@ -386,27 +386,30 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
 
         # Si hay al menos un proyecto, usar el primero (o podríamos retornar una lista)
         print("proyectos_impacto: ", proyectos_impacto)
-        all_descriptions = []
+        proyectos_ley_impacto = []
         if proyectos_impacto:
-            primer_proyecto = next(iter(proyectos_impacto.values()))
-            proyecto_ley_impacto = ProyectoLeyImpacto(
-                proyecto_id=primer_proyecto["proyecto_id"],
-                proyecto_titulo=primer_proyecto["proyecto_titulo"],
-                impactos=primer_proyecto["impactos"],
-            )
-            for impacto in primer_proyecto["impactos"]:
-                if impacto.nivel_relevancia > 50:
-                    all_descriptions.append(impacto.descripcion_impacto)
-                else:
-                    print("impacto.nivel_relevancia: ", impacto.nivel_relevancia)
-        print("all_descriptions: ", all_descriptions)
-        description = consolidate_descriptions(all_descriptions)
+            for proyecto_id, proyecto in proyectos_impacto.items():
+                all_descriptions = []
+                for impacto in proyecto["impactos"]:
+                    if impacto.nivel_relevancia > 50:
+                        all_descriptions.append(impacto.descripcion_impacto)
+                    else:
+                        print("impacto.nivel_relevancia: ", impacto.nivel_relevancia)
+                description = consolidate_descriptions(all_descriptions)
+                proyecto_ley_impacto = ProyectoLeyImpacto(
+                    proyecto_id=proyecto["proyecto_id"],
+                    proyecto_titulo=proyecto["proyecto_titulo"],
+                    impactos=proyecto["impactos"],
+                    descripcion_impacto_consolidada=description,
+                )
+                proyectos_ley_impacto.append(proyecto_ley_impacto)
+                print("description: ", description)
 
     # Actualizar el estado
     # state.proyectos_ley = proyectos_ley
-    ##state.conflictos = conflictos
-    state.proyecto_ley_impacto = proyecto_ley_impacto
-    state.descripcion_impacto_consolidada = description
+    # state.conflictos = conflictos
+    state.proyecto_ley_impacto = proyectos_ley_impacto
+    # state.descripcion_impacto_consolidada = description
 
     print("state: ", state)
     return state
