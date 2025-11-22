@@ -41,10 +41,18 @@ Railway requiere que crees cada servicio manualmente desde la UI, especificando 
    DJANGO_SETTINGS_MODULE=conf.settings
    PORT=${{PORT}}
    ```
+   
+   **IMPORTANTE:** Railway proporciona `PORT` automáticamente, pero si ves el error 
+   `OverflowError: bind(): port must be 0-65535`, verifica que `PORT` esté en las variables.
 
 4. Start Command (Settings → Deploy → Start Command):
    ```bash
-   python manage.py migrate && python manage.py collectstatic --noinput && gunicorn conf.wsgi:application --bind 0.0.0.0:$PORT
+   /entrypoint.sh
+   ```
+   
+   O si prefieres el comando completo:
+   ```bash
+   python manage.py migrate --noinput && python manage.py collectstatic --noinput --clear && PORT=${PORT:-8000} gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 3 --timeout 120
    ```
 
 5. En **Settings** → **Networking**:
@@ -62,9 +70,12 @@ Railway requiere que crees cada servicio manualmente desde la UI, especificando 
 
 3. Variables de entorno:
    ```bash
-   VITE_API_URL=https://${{backend.RAILWAY_PUBLIC_DOMAIN}}
+   VITE_PROXY_BACKEND_URL=https://${{backend.RAILWAY_PUBLIC_DOMAIN}}
    PORT=${{PORT}}
    ```
+   
+   **Nota:** `VITE_PROXY_BACKEND_URL` se usa para el proxy de Vite en desarrollo. 
+   En producción, si el frontend hace requests directos al backend, también necesitarás esta variable.
 
 4. Start Command:
    ```bash
@@ -152,8 +163,18 @@ Este error significa que Railway está buscando el Dockerfile en el **root** del
 - Para backend: Root Directory = `backend`, Dockerfile Path = `docker/Dockerfile`
 - Para frontend: Root Directory = `frontend`, Dockerfile Path = `docker/Dockerfile`
 
+### Error: "OverflowError: bind(): port must be 0-65535"
+Este error significa que la variable `PORT` no está definida o tiene un valor inválido.
+
+**Solución:**
+1. Ve a Railway UI → Tu servicio backend → Settings → Variables
+2. Verifica que `PORT=${{PORT}}` esté configurada
+3. Railway debería proporcionar `PORT` automáticamente, pero si no está:
+   - Agrega `PORT=${{PORT}}` manualmente
+   - O usa el start command: `/entrypoint.sh` (que maneja PORT con valor por defecto)
+
 ### Frontend no se conecta al backend
-- Verifica que `VITE_API_URL` tenga la URL correcta del backend
+- Verifica que `VITE_PROXY_BACKEND_URL` tenga la URL correcta del backend
 - Verifica que el backend tenga CORS configurado para permitir el dominio del frontend
 - Verifica que ambos servicios tengan "Public Networking" activado
 
