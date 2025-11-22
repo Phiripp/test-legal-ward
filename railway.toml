@@ -23,7 +23,7 @@ restartPolicyMaxRetries = 10
 [deploy.backend.build]
 builder = "DOCKERFILE"
 dockerfilePath = "docker/Dockerfile"
-dockerContext = "backend"
+dockerContext = "."
 
 # Frontend service configuration
 [deploy.frontend]
@@ -32,5 +32,5 @@ startCommand = "serve -s dist -l $PORT"
 [deploy.frontend.build]
 builder = "DOCKERFILE"
 dockerfilePath = "docker/Dockerfile"
-dockerContext = "frontend"
+dockerContext = "."
 dockerTarget = "runtime"
