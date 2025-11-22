@@ -73,23 +73,12 @@ echo "🚀 Executing Gunicorn..."
 echo "📡 Gunicorn will listen on: 0.0.0.0:$PORT"
 echo "⏳ Starting server..."
 
-# Start Gunicorn - simplificado para debug
-echo "🔍 Starting Gunicorn with PORT=$PORT"
+# TEMPORALMENTE: Usar runserver para debug
+# Si esto funciona, el problema es con Gunicorn
+# Si esto NO funciona, el problema es con Railway
+echo "🔍 TEMPORAL DEBUG: Using Django runserver instead of Gunicorn"
 echo "📡 Binding to: 0.0.0.0:$PORT"
 echo "🌐 Server will be accessible on port $PORT"
 
-# Verificar que el puerto esté disponible
-if command -v netstat >/dev/null 2>&1; then
-    echo "🔍 Checking if port $PORT is in use..."
-    netstat -tuln | grep ":$PORT " || echo "✅ Port $PORT appears to be available"
-fi
-
-exec gunicorn wsgi:application \
-    --bind 0.0.0.0:$PORT \
-    --workers 1 \
-    --timeout 120 \
-    --access-logfile - \
-    --error-logfile - \
-    --log-level debug \
-    --capture-output \
-    --preload
+# Usar runserver temporalmente para ver si Railway puede conectarse
+exec python manage.py runserver 0.0.0.0:$PORT
