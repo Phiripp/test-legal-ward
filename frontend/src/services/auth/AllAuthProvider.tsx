@@ -48,7 +48,9 @@ type AuthContextType = {
   logout: () => Promise<void>;
 };
 
-const AUTH_URL = "/.auth/headless";
+const AUTH_URL = import.meta.env.VITE_BACKEND_URL
+  ? `${import.meta.env.VITE_BACKEND_URL}/.auth/headless`
+  : "/.auth/headless";
 
 const ANON: Session = {
   authenticated: false,
