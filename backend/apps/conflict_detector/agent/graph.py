@@ -73,16 +73,7 @@ def run_agent(document_pages: list[str]) -> dict:
     # LangGraph puede retornar un dict o el objeto, manejamos ambos casos
     print("results.keys(): ", result.keys())
     conflictos = result["conflictos"]
-    proyecto_ley_impacto = result["proyecto_ley_impacto"]
-    print("proyecto_ley_impacto: ", proyecto_ley_impacto)
     print("conflictos: ", conflictos)
 
-    # Formatear conflictos por proyecto y artículo
-    conflictos_formateados = format_conflictos_output(conflictos)
-
-    return {
-        "resultado": proyecto_ley_impacto.impactos[0].descripcion_impacto,
-        "conflictos": conflictos_formateados,
-        "total_conflictos": len(conflictos),
-    }
+    return result
 

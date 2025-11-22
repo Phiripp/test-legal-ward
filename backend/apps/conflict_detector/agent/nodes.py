@@ -9,7 +9,7 @@ import numpy as np
 from openai import OpenAI
 
 from .models import ConflictoDetectado, ImpactoConflicto, ProyectoLey, ProyectoLeyImpacto
-from .prompts import MAP_EXTRACCION_MATRICES
+from .prompts import MAP_EXTRACCION_MATRICES, CONSOLIDACION_DESCRIPCIONES
 from .state import ConflictDetectorState
 from django.conf import settings
 from .llm_map import llm_map
@@ -232,6 +232,66 @@ def detectar_conflictos(
     return conflictos
 
 
+def consolidate_descriptions(descriptions: list[str]) -> str:
+    """
+    Consolida múltiples descripciones de impacto en un análisis único y coherente.
+
+    Args:
+        descriptions: Lista de descripciones de impacto a consolidar
+
+    Returns:
+        Descripción consolidada como string
+    """
+    if not descriptions:
+        return ""
+    
+    if len(descriptions) == 1:
+        return descriptions[0]
+    
+    # Formatear descripciones numeradas para el prompt
+    formatted_descriptions = "\n\n".join(
+        f"## Impacto {i+1}\n{desc}" 
+        for i, desc in enumerate(descriptions)
+    )
+    
+    # Preparar el prompt con las descripciones
+    prompt_content = CONSOLIDACION_DESCRIPCIONES.format(
+        descriptions=formatted_descriptions
+    )
+    
+    # Llamar al LLM para consolidar
+    client = get_openai_client()
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Eres un abogado senior especializado en análisis regulatorio corporativo."
+                },
+                {
+                    "role": "user",
+                    "content": prompt_content
+                }
+            ],
+            temperature=0.3,
+            max_tokens=2000,
+        )
+        
+        consolidated = response.choices[0].message.content.strip()
+        print(f"✅ Consolidadas {len(descriptions)} descripciones de impacto")
+        return consolidated
+        
+    except Exception as e:
+        print(f"❌ Error al consolidar descripciones: {e}")
+        # Fallback: concatenar descripciones con separadores
+        return "\n\n---\n\n".join(
+            f"**Impacto {i+1}**\n\n{desc}" 
+            for i, desc in enumerate(descriptions)
+        )
+
+
 def calcular_impacto_conflictos(conflictos: list[ConflictoDetectado]):
     """
     Calcula el impacto de los conflictos detectados usando LLM con llm_map.
@@ -335,19 +395,14 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
                 else:
                     print("impacto.nivel_relevancia: ", impacto.nivel_relevancia)
         print("all_descriptions: ", all_descriptions)
-        if len(all_descriptions) > 1:
-            desription = consolidate_descriptions(all_descriptions)
-        elif len(all_descriptions) == 1:
-            desription = all_descriptions[0]
-        else:
-            desription = ""
+        description = consolidate_descriptions(all_descriptions)
 
 
     # Actualizar el estado
     #state.proyectos_ley = proyectos_ley
     ##state.conflictos = conflictos
     state.proyecto_ley_impacto = proyecto_ley_impacto
-    state.descripcion_impacto = desription
+    state.descripcion_impacto_consolidada = description
 
     print("state: ", state)
     return state
