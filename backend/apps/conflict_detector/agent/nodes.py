@@ -131,7 +131,7 @@ def load_proyectos_ley() -> list[ProyectoLey]:
 
 def detectar_conflictos(
     document_pages: list[str],
-    proyectos_ley: list[ProyectoLey],
+    articulos_con_proyecto: list[dict],
 ) -> list[ConflictoDetectado]:
     """
     Detecta conflictos comparando cada página con cada artículo.
@@ -143,17 +143,6 @@ def detectar_conflictos(
     Returns:
         Lista de conflictos detectados
     """
-    # Extraer todos los artículos con información del proyecto
-    articulos_con_proyecto = []
-    for proyecto in proyectos_ley:
-        for articulo in proyecto.articulos:
-            articulos_con_proyecto.append(
-                {
-                    "proyecto_id": proyecto.id,
-                    "proyecto_titulo": proyecto.titulo,
-                    "articulo": articulo,
-                }
-            )
 
     if not articulos_con_proyecto or not document_pages:
         return []
@@ -182,15 +171,8 @@ def detectar_conflictos(
     for item in articulos_con_proyecto:
         desc_sem = item["articulo"].descripcion_semantica
         # Filtrar artículos con descripcion_semantica vacía o inválida
-        if isinstance(desc_sem, str) and desc_sem.strip():
-            textos_articulos.append(desc_sem)
-            articulos_validos.append(item)
-        else:
-            # Si no hay descripción semántica válida, usar el texto del artículo como fallback
-            texto_articulo = item["articulo"].texto
-            if isinstance(texto_articulo, str) and texto_articulo.strip():
-                textos_articulos.append(texto_articulo)
-                articulos_validos.append(item)
+        textos_articulos.append(desc_sem)
+        articulos_validos.append(item)
     
     if not textos_articulos:
         print("No hay artículos válidos para procesar")
@@ -212,28 +194,28 @@ def detectar_conflictos(
         for art_idx, item in enumerate(articulos_validos):
             embedding_articulo = embeddings_articulos_np[art_idx]
             similitud = similitud_coseno(embedding_pagina, embedding_articulo)
-
-            similitudes_articulos.append(
-                {
-                    "proyecto_id": item["proyecto_id"],
-                    "proyecto_titulo": item["proyecto_titulo"],
-                    "articulo": item["articulo"],
-                    "similitud": similitud,
-                }
-            )
+            if similitud >= SIMILITUD_THRESHOLD:
+                similitudes_articulos.append(
+                    {
+                        "proyecto_id": item["proyecto_id"],
+                        "proyecto_titulo": item["proyecto_titulo"],
+                        "articulo": item["articulo"],
+                        "similitud": similitud,
+                    }
+                )
+            else:
+                print({
+                        "proyecto_id": item["proyecto_id"],
+                        "proyecto_titulo": item["proyecto_titulo"],
+                        "articulo": item["articulo"],
+                        "similitud": similitud,
+                    })
 
         # Ordenar por similitud descendente
         similitudes_articulos.sort(key=lambda x: x["similitud"], reverse=True)
 
-        # Tomar solo los que superan el threshold (máximo MAX_ARTICULOS_POR_PAGINA)
-        articulos_conflicto = [
-            item
-            for item in similitudes_articulos
-            if item["similitud"] >= SIMILITUD_THRESHOLD
-        ][:MAX_ARTICULOS_POR_PAGINA]
-
         # Crear conflictos detectados
-        for item in articulos_conflicto:
+        for item in similitudes_articulos:
             conflicto = ConflictoDetectado(
                 proyecto_id=item["proyecto_id"],
                 proyecto_titulo=item["proyecto_titulo"],
@@ -292,12 +274,19 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
     proyectos_ley = load_proyectos_ley()
     print("proyectos_ley: ", proyectos_ley)
     # Extraer artículos distintos
-    articulos_distintos = [
-        articulo for proyecto in proyectos_ley for articulo in proyecto.articulos
-    ]
-    print("articulos_distintos: ", articulos_distintos)
+    articulos_con_proyecto = []
+    for proyecto in proyectos_ley:
+        for articulo in proyecto.articulos:
+            articulos_con_proyecto.append(
+                {
+                    "proyecto_id": proyecto.id,
+                    "proyecto_titulo": proyecto.titulo,
+                    "articulo": articulo,
+                }
+            )
+    print("articulos_con_proyecto: ", articulos_con_proyecto)
     # Detectar conflictos
-    conflictos = detectar_conflictos(document_pages, proyectos_ley)
+    conflictos = detectar_conflictos(document_pages, articulos_con_proyecto)
     
     # Calcular impacto de los conflictos usando LLM
     print("conflictos: ", conflictos)
