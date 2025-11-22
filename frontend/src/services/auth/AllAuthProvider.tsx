@@ -27,9 +27,16 @@ type AllAuthProviderProps = {
 };
 
 type AllAuthConfig = {
-  emailLogin: {
+  callbackUrl: string;
+  loginUrl: string;
+  providerLogin?: {
     id: string;
-    login: (email: string, password: string) => Promise<unknown>;
+    loginUrl: string;
+    callbackUrl: string;
+  };
+  emailLogin?: {
+    id: string;
+    login: (email: string, password: string) => Promise<void>;
   };
 };
 
@@ -41,13 +48,7 @@ type AuthContextType = {
   logout: () => Promise<void>;
 };
 
-// Get backend base URL: use full URL in production, relative path in development
-// Vite reemplaza import.meta.env.VITE_* en tiempo de BUILD
-const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_URL || "";
-
-const AUTH_URL = BACKEND_BASE_URL 
-  ? `${BACKEND_BASE_URL}/.auth/headless` 
-  : "/.auth/headless";
+const AUTH_URL = "/.auth/headless";
 
 const ANON: Session = {
   authenticated: false,
@@ -78,38 +79,27 @@ export function AllAuthProvider({
 
   const configUrl = `${authUrl}/browser/v1/config`;
   const sessionUrl = `${authUrl}/browser/v1/auth/session`;
-  
-  console.log("Auth URLs:", { configUrl, sessionUrl, authUrl });
 
   const updateSession = useMemo(
-    () => async () => {
-      console.log("Updating session from:", sessionUrl);
-      try {
-        const res = await fetch(sessionUrl, {
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-        
-        console.log("Session response status:", res.status, res.statusText);
-        
-        if (res.status === 200) {
-          const data = await res.json();
-          console.log("Session data:", data);
+    () => async () =>
+      await fetch(sessionUrl, {
+        credentials: "include",
+      })
+        .then((res) => {
+          if (res.status === 200) {
+            return res.json();
+          }
+          throw new Error("Not authenticated");
+        })
+        .then((data) =>
           setSession({
             ...data,
             authenticated: true,
-          });
-        } else {
-          console.log("Session not authenticated, status:", res.status);
+          })
+        )
+        .catch(() => {
           setSession(ANON);
-        }
-      } catch (error) {
-        console.error("Error updating session:", error);
-        setSession(ANON);
-      }
-    },
+        }),
     [sessionUrl]
   );
 
@@ -130,87 +120,37 @@ export function AllAuthProvider({
 
   useEffect(() => {
     Promise.allSettled([
-      fetch(configUrl, {
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-        .then((res) => {
-          if (!res.ok) {
-            throw new Error(`Config fetch failed: ${res.status} ${res.statusText}`);
-          }
-          return res.json();
-        })
-        .catch((error) => {
-          console.error("Error fetching config:", error);
-          throw error;
-        }),
+      fetch(configUrl).then((res) => res.json()),
       updateSession(),
     ]).then((results) => {
       const configResult = results[0];
       if (configResult.status !== "fulfilled") {
-        console.error("Config fetch failed:", configResult.reason);
-        setIsConfigured(true);
         return;
       }
-
-      const configData = configResult.value;
-      console.log("Full config response:", JSON.stringify(configResult.value, null, 2));
-      
-      // Try multiple possible response structures
-      const accountData = configData?.account || configData?.data?.account || configData?.data;
-      const loginMethods = accountData?.login_methods || [];
-      
-      console.log("Account data:", accountData);
-      console.log("Login methods:", loginMethods);
-      console.log("Is array?", Array.isArray(loginMethods));
-      console.log("Includes email?", loginMethods.includes("email"));
-
-      // Always enable email login if backend responds (even if structure is unexpected)
-      // This is a fallback - the backend is configured for email login
-      const hasEmailLogin = Array.isArray(loginMethods) && loginMethods.includes("email");
-      
-      if (hasEmailLogin || loginMethods.length === 0) {
-        // Enable email login - backend supports it based on ACCOUNT_LOGIN_METHODS = {"email"}
+      if (configResult.value?.data?.socialaccount?.providers?.[0]) {
         setConfig({
-          emailLogin: {
-            id: "email",
-            login: async (email: string, password: string) => {
-              const loginUrl = `${authUrl}/browser/v1/auth/login`;
-              console.log("Attempting login to:", loginUrl, "with email:", email);
-              
-              const response = await fetch(loginUrl, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                credentials: "include",
-                body: JSON.stringify({ email, password }),
-              });
-              
-              console.log("Login response status:", response.status, response.statusText);
-              
-              if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                console.error("Login error data:", errorData);
-                throw new Error(errorData.errors?.[0]?.message || `Login failed: ${response.status}`);
-              }
-              
-              const result = await response.json();
-              console.log("Login success:", result);
-              return result;
-            },
+          ...configResult.value?.data,
+          providerLogin: {
+            id: configResult.value?.data?.socialaccount?.providers?.[0]?.id,
+            loginUrl: `${authUrl}/browser/v1/auth/provider/redirect`,
+            callbackUrl,
           },
         });
-      } else {
-        console.error("Email login not available. Config structure:", {
-          configData,
-          accountData,
-          loginMethods: loginMethods,
+      } else if (
+        configResult.value?.data?.account?.login_methods.includes("email")
+      ) {
+        setConfig({
+          ...configResult.value?.data,
+          emailLogin: {
+            id: configResult.value?.data?.account?.login_methods?.[0]?.id,
+            login: (email: string, password: string) =>
+              fetch(`${authUrl}/browser/v1/auth/login`, {
+                method: "POST",
+                body: JSON.stringify({ email, password }),
+              }).then((res) => res.json()),
+          },
         });
       }
-      
       setIsConfigured(true);
     });
   }, [authUrl, callbackUrl, configUrl, updateSession]);
