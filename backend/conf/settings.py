@@ -357,17 +357,15 @@ LOGGING = {
 # CORS
 #############################
 # https://github.com/adamchainz/django-cors-headers
-# Permitir el frontend URL configurado
-frontend_url = django_config.FRONTEND_URL.strip() if django_config.FRONTEND_URL else ""
-if frontend_url:
-    CORS_ALLOWED_ORIGINS = [frontend_url]
-    CORS_ALLOW_ALL_ORIGINS = False
-else:
-    # Si no hay FRONTEND_URL configurada, permitir todos los orígenes (solo para desarrollo)
-    CORS_ALLOW_ALL_ORIGINS = DEBUG
-    CORS_ALLOWED_ORIGINS = []
+# TEMPORALMENTE DESACTIVADO PARA DEBUGGING
+# Permitir todos los orígenes (NO RECOMENDADO PARA PRODUCCIÓN)
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = []
 CORS_ALLOW_CREDENTIALS = True
 CORS_EXPOSE_HEADERS = ["X-Session-Token"]
+# Permitir todos los métodos y headers
+CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]
+CORS_ALLOW_HEADERS = ["*"]
 
 # Allow cookies to be sent cross-origin
 SESSION_COOKIE_SAMESITE = "Lax"
