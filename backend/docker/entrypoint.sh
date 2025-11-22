@@ -75,6 +75,15 @@ echo "⏳ Starting server..."
 
 # Start Gunicorn - simplificado para debug
 echo "🔍 Starting Gunicorn with PORT=$PORT"
+echo "📡 Binding to: 0.0.0.0:$PORT"
+echo "🌐 Server will be accessible on port $PORT"
+
+# Verificar que el puerto esté disponible
+if command -v netstat >/dev/null 2>&1; then
+    echo "🔍 Checking if port $PORT is in use..."
+    netstat -tuln | grep ":$PORT " || echo "✅ Port $PORT appears to be available"
+fi
+
 exec gunicorn wsgi:application \
     --bind 0.0.0.0:$PORT \
     --workers 1 \
@@ -82,4 +91,5 @@ exec gunicorn wsgi:application \
     --access-logfile - \
     --error-logfile - \
     --log-level debug \
-    --capture-output
+    --capture-output \
+    --preload
