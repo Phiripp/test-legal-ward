@@ -8,7 +8,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function Login() {
-  const { session, config: { emailLogin, providerLogin } = {} } = useAuth();
+  const { session, config, isConfigured } = useAuth();
 
   if (session.authenticated) {
     return <Navigate to="/" replace />;
@@ -38,43 +38,26 @@ function Login() {
           <Heading size="6" weight="bold" align="center">
             Login
           </Heading>
-          {providerLogin ? (
-            <ProviderLogin providerLogin={providerLogin} />
-          ) : emailLogin ? (
-            <EmailPasswordLogin emailLogin={emailLogin} />
-          ) : null}
+          {!isConfigured ? (
+            <Text size="3" color="gray" align="center">
+              Loading...
+            </Text>
+          ) : config?.emailLogin ? (
+            <EmailPasswordLogin emailLogin={config.emailLogin} />
+          ) : (
+            <Text size="3" color="red" align="center">
+              Email login not available. Please check backend configuration.
+            </Text>
+          )}
         </Flex>
       </Box>
     </Box>
   );
 }
 
-type ProviderLoginProps = {
-  providerLogin: {
-    id: string;
-    loginUrl: string;
-    callbackUrl: string;
-  };
-};
-
-function ProviderLogin({
-  providerLogin: { id, loginUrl, callbackUrl },
-}: ProviderLoginProps) {
-  return (
-    <form action={loginUrl} method="POST" style={{ width: "100%" }}>
-      <input type="hidden" name="provider" value={id} />
-      <input type="hidden" name="callback_url" value={callbackUrl} />
-      <input type="hidden" name="process" value="login" />
-      <Button type="submit" style={{ width: "100%" }}>
-        Sign In
-      </Button>
-    </form>
-  );
-}
-
 type EmailPasswordLoginProps = {
   emailLogin: {
-    login: (email: string, password: string) => Promise<void>;
+    login: (email: string, password: string) => Promise<unknown>;
   };
 };
 
@@ -113,16 +96,23 @@ function EmailPasswordLogin({
     setError("");
 
     try {
-      const data = (await login(email, password)) as unknown as {
-        errors?: { message: string }[];
-      } | null;
-      if (data && data.errors) {
-        setError(data.errors.map((error) => error.message).join("\n"));
+      const data = await login(email, password);
+      console.log("Login response:", data);
+      
+      if (data && typeof data === 'object' && 'errors' in data) {
+        const errorData = data as { errors?: { message: string }[] };
+        if (errorData.errors && errorData.errors.length > 0) {
+          setError(errorData.errors.map((error) => error.message).join("\n"));
+        } else {
+          setError("Login failed. Please check your credentials.");
+        }
       } else {
-        updateSession();
+        // Login successful
+        await updateSession();
       }
-    } catch {
-      setError("Error logging in");
+    } catch (error) {
+      console.error("Login error:", error);
+      setError(error instanceof Error ? error.message : "Error logging in. Please try again.");
     } finally {
       setIsLoading(false);
     }

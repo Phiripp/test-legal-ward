@@ -27,16 +27,9 @@ type AllAuthProviderProps = {
 };
 
 type AllAuthConfig = {
-  callbackUrl: string;
-  loginUrl: string;
-  providerLogin?: {
+  emailLogin: {
     id: string;
-    loginUrl: string;
-    callbackUrl: string;
-  };
-  emailLogin?: {
-    id: string;
-    login: (email: string, password: string) => Promise<void>;
+    login: (email: string, password: string) => Promise<unknown>;
   };
 };
 
@@ -79,27 +72,38 @@ export function AllAuthProvider({
 
   const configUrl = `${authUrl}/browser/v1/config`;
   const sessionUrl = `${authUrl}/browser/v1/auth/session`;
+  
+  console.log("Auth URLs:", { configUrl, sessionUrl, authUrl });
 
   const updateSession = useMemo(
-    () => async () =>
-      await fetch(sessionUrl, {
-        credentials: "include",
-      })
-        .then((res) => {
-          if (res.status === 200) {
-            return res.json();
-          }
-          throw new Error("Not authenticated");
-        })
-        .then((data) =>
+    () => async () => {
+      console.log("Updating session from:", sessionUrl);
+      try {
+        const res = await fetch(sessionUrl, {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        
+        console.log("Session response status:", res.status, res.statusText);
+        
+        if (res.status === 200) {
+          const data = await res.json();
+          console.log("Session data:", data);
           setSession({
             ...data,
             authenticated: true,
-          })
-        )
-        .catch(() => {
+          });
+        } else {
+          console.log("Session not authenticated, status:", res.status);
           setSession(ANON);
-        }),
+        }
+      } catch (error) {
+        console.error("Error updating session:", error);
+        setSession(ANON);
+      }
+    },
     [sessionUrl]
   );
 
@@ -120,37 +124,62 @@ export function AllAuthProvider({
 
   useEffect(() => {
     Promise.allSettled([
-      fetch(configUrl).then((res) => res.json()),
+      fetch(configUrl, {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`Config fetch failed: ${res.status} ${res.statusText}`);
+          }
+          return res.json();
+        })
+        .catch((error) => {
+          console.error("Error fetching config:", error);
+          throw error;
+        }),
       updateSession(),
     ]).then((results) => {
       const configResult = results[0];
       if (configResult.status !== "fulfilled") {
+        console.error("Config fetch failed:", configResult.reason);
+        setIsConfigured(true);
         return;
       }
-      if (configResult.value?.data?.socialaccount?.providers?.[0]) {
+
+      const configData = configResult.value?.data;
+      console.log("Config data:", configData);
+
+      // Only support email login, ignore social providers
+      if (configData?.account?.login_methods?.includes("email")) {
         setConfig({
-          ...configResult.value?.data,
-          providerLogin: {
-            id: configResult.value?.data?.socialaccount?.providers?.[0]?.id,
-            loginUrl: `${authUrl}/browser/v1/auth/provider/redirect`,
-            callbackUrl,
-          },
-        });
-      } else if (
-        configResult.value?.data?.account?.login_methods.includes("email")
-      ) {
-        setConfig({
-          ...configResult.value?.data,
           emailLogin: {
-            id: configResult.value?.data?.account?.login_methods?.[0]?.id,
-            login: (email: string, password: string) =>
-              fetch(`${authUrl}/browser/v1/auth/login`, {
+            id: configData.account?.login_methods?.[0] || "email",
+            login: async (email: string, password: string) => {
+              const response = await fetch(`${authUrl}/browser/v1/auth/login`, {
                 method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                credentials: "include",
                 body: JSON.stringify({ email, password }),
-              }).then((res) => res.json()),
+              });
+              
+              if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.errors?.[0]?.message || `Login failed: ${response.status}`);
+              }
+              
+              return response.json();
+            },
           },
         });
+      } else {
+        console.warn("Email login not available in config");
       }
+      
       setIsConfigured(true);
     });
   }, [authUrl, callbackUrl, configUrl, updateSession]);
