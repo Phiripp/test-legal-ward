@@ -64,8 +64,10 @@ class EmailConfig(Config):
 
 class ProjectConfig(Config):
     """Project-specific configuration"""
+
     OPENAI_API_KEY: str = ""
     ...
+
 
 # Load configurations
 django_config = DjangoConfig.load(prefix="DJANGO")
@@ -160,6 +162,7 @@ INSTALLED_APPS = [
     ############################
     "apps.users",
     "apps.auditlog",
+    "apps.proyectos_ley",
     "apps.conflict_detector",
 ]
 
