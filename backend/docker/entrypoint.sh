@@ -73,15 +73,13 @@ echo "🚀 Executing Gunicorn..."
 echo "📡 Gunicorn will listen on: 0.0.0.0:$PORT"
 echo "⏳ Starting server..."
 
-# Start Gunicorn with explicit configuration
+# Start Gunicorn - simplificado para debug
+echo "🔍 Starting Gunicorn with PORT=$PORT"
 exec gunicorn wsgi:application \
     --bind 0.0.0.0:$PORT \
-    --workers 3 \
+    --workers 1 \
     --timeout 120 \
     --access-logfile - \
     --error-logfile - \
-    --log-level info \
-    --capture-output \
-    --preload \
-    --graceful-timeout 30 \
-    --keep-alive 5
+    --log-level debug \
+    --capture-output

@@ -15,8 +15,9 @@ builder = "DOCKERFILE"
 # Backend service configuration
 [deploy.backend]
 startCommand = "/entrypoint.sh"
-healthcheckPath = "/_health/"
-healthcheckTimeout = 300
+# Desactivar healthcheck temporalmente para debug
+# healthcheckPath = "/_health/"
+# healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 
