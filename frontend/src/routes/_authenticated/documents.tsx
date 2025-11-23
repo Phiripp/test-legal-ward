@@ -9,12 +9,14 @@ import {
   type DocumentoList
 } from "../../services/api/conflictDetector";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { useDiscoveries } from "../../contexts/DiscoveriesContext";
 
 export const Route = createFileRoute("/_authenticated/documents")({
   component: Documents,
 });
 
 function Documents() {
+  const { setPendingCount } = useDiscoveries();
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -71,6 +73,8 @@ function Documents() {
     try {
       const result = await detectConflicts(file);
       setDetectionResult(result);
+      // Actualizar el contador de pendientes con el valor del servidor
+      setPendingCount(result.pending_discoveries_count);
       // Recargar la lista de documentos
       await loadDocuments();
     } catch (error) {
@@ -125,6 +129,8 @@ function Documents() {
 
       const result = await detectConflicts(file);
       setDetectionResult(result);
+      // Actualizar el contador de pendientes con el valor del servidor
+      setPendingCount(result.pending_discoveries_count);
       await loadDocuments();
     } catch (error) {
       console.error('Error al usar PDF de prueba:', error);

@@ -18,7 +18,7 @@ from .services import detect_conflicts
 router = Router()
 
 
-@router.post("/detect", auth=None)
+@router.post("/detect")
 async def detect_conflicts_endpoint(request, file: UploadedFile = File(...)):
     """
     Detecta conflictos usando el agente LangGraph.
@@ -33,19 +33,19 @@ async def detect_conflicts_endpoint(request, file: UploadedFile = File(...)):
     pdf_content = file.read()
 
     # Procesar el PDF y detectar conflictos (guarda automáticamente en DB)
-    result = await detect_conflicts(pdf_content, nombre_documento=file.name)
+    result = await detect_conflicts(pdf_content, nombre_documento=file.name, user=request.user)
     return result
 
 
-@router.get("/documents", response=list[DocumentoListSchema], auth=None)
+@router.get("/documents", response=list[DocumentoListSchema])
 def list_documents(request):
     """
-    Lista todos los documentos cargados.
+    Lista todos los documentos cargados por el usuario actual.
 
     Returns:
         Lista de documentos con su información básica y cantidad de descubrimientos
     """
-    documentos = Documento.objects.annotate(
+    documentos = Documento.objects.filter(user=request.user).annotate(
         cantidad_descubrimientos=Count("descubrimientos")
     ).all()
 
@@ -60,7 +60,7 @@ def list_documents(request):
     ]
 
 
-@router.get("/documents/{documento_id}", response=DocumentoDetailSchema, auth=None)
+@router.get("/documents/{documento_id}", response=DocumentoDetailSchema)
 def get_document_detail(request, documento_id: int):
     """
     Obtiene los detalles de un documento específico con todos sus descubrimientos.
@@ -72,7 +72,7 @@ def get_document_detail(request, documento_id: int):
         Documento con todos sus descubrimientos e impactos
     """
     documento = get_object_or_404(
-        Documento.objects.prefetch_related(
+        Documento.objects.filter(user=request.user).prefetch_related(
             "descubrimientos__impactos"
         ),
         id=documento_id,
@@ -106,7 +106,7 @@ def get_document_detail(request, documento_id: int):
     }
 
 
-@router.delete("/documents/{documento_id}", auth=None)
+@router.delete("/documents/{documento_id}")
 def delete_document(request, documento_id: int):
     """
     Elimina un documento y todos sus descubrimientos asociados.
@@ -117,17 +117,17 @@ def delete_document(request, documento_id: int):
     Returns:
         Mensaje de confirmación
     """
-    documento = get_object_or_404(Documento, id=documento_id)
+    documento = get_object_or_404(Documento, id=documento_id, user=request.user)
     nombre = documento.nombre
     documento.delete()
 
     return {"success": True, "message": f"Documento '{nombre}' eliminado correctamente"}
 
 
-@router.get("/discoveries", response=list[DescubrimientoListSchema], auth=None)
+@router.get("/discoveries", response=list[DescubrimientoListSchema])
 def list_discoveries(request):
     """
-    Lista todos los descubrimientos de conflictos pendientes.
+    Lista todos los descubrimientos de conflictos pendientes del usuario actual.
     Excluye los descubrimientos descartados y los que están en seguimiento.
 
     Returns:
@@ -135,8 +135,8 @@ def list_discoveries(request):
     """
     descubrimientos = (
         DescubrimientoConflicto.objects.select_related("documento")
+        .filter(documento__user=request.user, estado=DescubrimientoConflicto.Estado.PENDING)
         .annotate(cantidad_impactos=Count("impactos"))
-        .filter(estado=DescubrimientoConflicto.Estado.PENDING)
         .order_by("-max_nivel_relevancia")
     )
 
@@ -157,10 +157,10 @@ def list_discoveries(request):
     ]
 
 
-@router.get("/discoveries/tracking", response=list[DescubrimientoListSchema], auth=None)
+@router.get("/discoveries/tracking", response=list[DescubrimientoListSchema])
 def list_tracking_discoveries(request):
     """
-    Lista todos los descubrimientos que están en seguimiento.
+    Lista todos los descubrimientos que están en seguimiento del usuario actual.
     Incluye información del proyecto de ley (etapa, fecha, etc.)
 
     Returns:
@@ -168,8 +168,8 @@ def list_tracking_discoveries(request):
     """
     descubrimientos = (
         DescubrimientoConflicto.objects.select_related("documento")
+        .filter(documento__user=request.user, estado=DescubrimientoConflicto.Estado.TRACKING)
         .annotate(cantidad_impactos=Count("impactos"))
-        .filter(estado=DescubrimientoConflicto.Estado.TRACKING)
     )
 
     result = []
@@ -205,7 +205,7 @@ def list_tracking_discoveries(request):
     return result
 
 
-@router.get("/discoveries/{descubrimiento_id}", response=DescubrimientoDetailSchema, auth=None)
+@router.get("/discoveries/{descubrimiento_id}", response=DescubrimientoDetailSchema)
 def get_discovery_detail(request, descubrimiento_id: int):
     """
     Obtiene los detalles de un descubrimiento específico con todos sus impactos.
@@ -219,7 +219,7 @@ def get_discovery_detail(request, descubrimiento_id: int):
     descubrimiento = get_object_or_404(
         DescubrimientoConflicto.objects.select_related("documento").prefetch_related(
             "impactos"
-        ),
+        ).filter(documento__user=request.user),
         id=descubrimiento_id,
     )
 
@@ -252,7 +252,7 @@ def get_discovery_detail(request, descubrimiento_id: int):
     }
 
 
-@router.post("/discoveries/{descubrimiento_id}/track", auth=None)
+@router.post("/discoveries/{descubrimiento_id}/track")
 def track_discovery(request, descubrimiento_id: int):
     """
     Marca un descubrimiento como en seguimiento.
@@ -265,7 +265,11 @@ def track_discovery(request, descubrimiento_id: int):
     Returns:
         Mensaje de confirmación con el descubrimiento actualizado
     """
-    descubrimiento = get_object_or_404(DescubrimientoConflicto, id=descubrimiento_id)
+    descubrimiento = get_object_or_404(
+        DescubrimientoConflicto,
+        id=descubrimiento_id,
+        documento__user=request.user
+    )
     descubrimiento.estado = DescubrimientoConflicto.Estado.TRACKING
     descubrimiento.save()
 
@@ -276,7 +280,7 @@ def track_discovery(request, descubrimiento_id: int):
     }
 
 
-@router.post("/discoveries/{descubrimiento_id}/discard", auth=None)
+@router.post("/discoveries/{descubrimiento_id}/discard")
 def discard_discovery(request, descubrimiento_id: int):
     """
     Marca un descubrimiento como descartado.
@@ -288,7 +292,11 @@ def discard_discovery(request, descubrimiento_id: int):
     Returns:
         Mensaje de confirmación con el descubrimiento actualizado
     """
-    descubrimiento = get_object_or_404(DescubrimientoConflicto, id=descubrimiento_id)
+    descubrimiento = get_object_or_404(
+        DescubrimientoConflicto,
+        id=descubrimiento_id,
+        documento__user=request.user
+    )
     descubrimiento.estado = DescubrimientoConflicto.Estado.DISCARDED
     descubrimiento.save()
 

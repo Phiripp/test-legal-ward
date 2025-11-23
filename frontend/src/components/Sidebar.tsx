@@ -1,9 +1,9 @@
 import { LayoutDashboard, FileText, Search, Eye, X } from "lucide-react";
 import { Link, useMatchRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import logoLW from "@/assets/logo_lw.svg";
-import { listDiscoveries } from "@/services/api/conflictDetector";
+import { useDiscoveries } from "@/contexts/DiscoveriesContext";
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -14,24 +14,8 @@ const items = [
 
 export function Sidebar() {
   const [isOpen, setIsOpen] = useState(true);
-  const [pendingCount, setPendingCount] = useState<number>(0);
+  const { pendingCount } = useDiscoveries();
   const matchRoute = useMatchRoute();
-
-  useEffect(() => {
-    const fetchPendingCount = async () => {
-      try {
-        const discoveries = await listDiscoveries();
-        setPendingCount(discoveries.length);
-      } catch (error) {
-        console.error("Error fetching pending discoveries:", error);
-      }
-    };
-
-    fetchPendingCount();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchPendingCount, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <>

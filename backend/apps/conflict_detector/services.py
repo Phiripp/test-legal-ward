@@ -28,17 +28,18 @@ def extract_text_from_pdf(pdf_content: bytes) -> list[str]:
     return pages_text
 
 
-def crear_documento(nombre: str) -> Documento:
+def crear_documento(nombre: str, user) -> Documento:
     """
     Crea un documento en la base de datos.
 
     Args:
         nombre: Nombre del documento
+        user: Usuario que sube el documento
 
     Returns:
         El objeto Documento creado
     """
-    return Documento.objects.create(nombre=nombre)
+    return Documento.objects.create(nombre=nombre, user=user)
 
 
 def guardar_descubrimientos(
@@ -97,19 +98,20 @@ def guardar_descubrimientos(
     }
 
 
-async def detect_conflicts(pdf_content: bytes, nombre_documento: str = "") -> dict:
+async def detect_conflicts(pdf_content: bytes, nombre_documento: str = "", user=None) -> dict:
     """
     Detecta conflictos usando el agente LangGraph y guarda el descubrimiento.
 
     Args:
         pdf_content: Contenido del archivo PDF en bytes
         nombre_documento: Nombre opcional del documento analizado
+        user: Usuario que sube el documento
 
     Returns:
-        Diccionario con el documento y los descubrimientos
+        Diccionario con el documento, los descubrimientos y el conteo de pendientes
     """
     # Crear el documento primero
-    documento = await sync_to_async(crear_documento)(nombre_documento)
+    documento = await sync_to_async(crear_documento)(nombre_documento, user)
 
     # Extraer texto de cada página del PDF
     document_pages = await sync_to_async(extract_text_from_pdf)(pdf_content)
@@ -117,5 +119,18 @@ async def detect_conflicts(pdf_content: bytes, nombre_documento: str = "") -> di
     # Ejecutar el agente de forma asíncrona usando sync_to_async
     impactos = await sync_to_async(run_agent)(document_pages)
 
-    # Guardar los descubrimientos en la base de datos y retornar resultado
-    return await sync_to_async(guardar_descubrimientos)(documento, impactos)
+    # Guardar los descubrimientos en la base de datos
+    result = await sync_to_async(guardar_descubrimientos)(documento, impactos)
+
+    # Contar descubrimientos pendientes del usuario
+    pending_count = await sync_to_async(
+        lambda: DescubrimientoConflicto.objects.filter(
+            documento__user=user,
+            estado=DescubrimientoConflicto.Estado.PENDING
+        ).count()
+    )()
+
+    # Agregar el conteo al resultado
+    result["pending_discoveries_count"] = pending_count
+
+    return result

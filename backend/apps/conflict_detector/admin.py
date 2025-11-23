@@ -42,9 +42,9 @@ class ImpactoDescubiertoInline(admin.TabularInline):
 class DocumentoAdmin(admin.ModelAdmin):
     """Admin para Documento."""
 
-    list_display = ["id", "nombre", "fecha_carga", "cantidad_descubrimientos"]
-    list_filter = ["fecha_carga"]
-    search_fields = ["nombre"]
+    list_display = ["id", "nombre", "user", "fecha_carga", "cantidad_descubrimientos"]
+    list_filter = ["fecha_carga", "user"]
+    search_fields = ["nombre", "user__email"]
     readonly_fields = ["fecha_carga", "created_at", "updated_at"]
     inlines = [DescubrimientoConflictoInline]
 
