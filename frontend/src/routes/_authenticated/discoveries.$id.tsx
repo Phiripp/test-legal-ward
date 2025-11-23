@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Eye, X, ArrowLeft, FileText, Scale, Loader2 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { getDiscoveryDetail, trackDiscovery, discardDiscovery, type DescubrimientoDetail } from "../../services/api/conflictDetector";
+import { addRecentlyViewedDiscovery } from "../../lib/utils";
 import ReactMarkdown from "react-markdown";
 
 export const Route = createFileRoute("/_authenticated/discoveries/$id")({
@@ -31,6 +32,15 @@ function ProjectDetail() {
       setIsLoading(true);
       const data = await getDiscoveryDetail(Number(id));
       setDiscovery(data);
+      
+      // Registrar que este proyecto fue visto
+      addRecentlyViewedDiscovery({
+        id: data.id,
+        proyecto_id: data.proyecto_id,
+        proyecto_titulo: data.proyecto_titulo,
+        cantidad_impactos: data.impactos.length,
+        estado: data.estado,
+      });
     } catch (err) {
       console.error('Error al cargar descubrimiento:', err);
       setError(err instanceof Error ? err.message : 'Error desconocido');
