@@ -1,5 +1,4 @@
 import { createFileRoute, Navigate, Outlet } from "@tanstack/react-router";
-import { Box } from "@seisveinte/react";
 import { useAuth } from "../services/auth";
 import { Sidebar } from "../components/Sidebar";
 
@@ -19,11 +18,11 @@ function AuthenticatedContent() {
   }
 
   return (
-    <>
+    <div className="min-h-screen flex bg-background">
       <Sidebar />
-      <Box style={{ marginLeft: "250px" }}>
+      <main className="flex-1 p-6 min-w-0">
         <Outlet />
-      </Box>
-    </>
+      </main>
+    </div>
   );
 }

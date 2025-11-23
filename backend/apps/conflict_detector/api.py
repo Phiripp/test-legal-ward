@@ -1,7 +1,16 @@
 """API endpoints para conflict detector."""
 
+from django.db.models import Count
+from django.shortcuts import get_object_or_404
 from ninja import File, Router, UploadedFile
 
+from .models import Documento, DescubrimientoConflicto
+from .schemas import (
+    DescubrimientoDetailSchema,
+    DescubrimientoListSchema,
+    DocumentoDetailSchema,
+    DocumentoListSchema,
+)
 from .services import detect_conflicts
 
 
@@ -25,3 +34,163 @@ async def detect_conflicts_endpoint(request, file: UploadedFile = File(...)):
     # Procesar el PDF y detectar conflictos (guarda automáticamente en DB)
     result = await detect_conflicts(pdf_content, nombre_documento=file.name)
     return result
+
+
+@router.get("/documents", response=list[DocumentoListSchema], auth=None)
+def list_documents(request):
+    """
+    Lista todos los documentos cargados.
+
+    Returns:
+        Lista de documentos con su información básica y cantidad de descubrimientos
+    """
+    documentos = Documento.objects.annotate(
+        cantidad_descubrimientos=Count("descubrimientos")
+    ).all()
+
+    return [
+        {
+            "id": doc.id,
+            "nombre": doc.nombre,
+            "fecha_carga": doc.fecha_carga,
+            "cantidad_descubrimientos": doc.cantidad_descubrimientos,
+        }
+        for doc in documentos
+    ]
+
+
+@router.get("/documents/{documento_id}", response=DocumentoDetailSchema, auth=None)
+def get_document_detail(request, documento_id: int):
+    """
+    Obtiene los detalles de un documento específico con todos sus descubrimientos.
+
+    Args:
+        documento_id: ID del documento a consultar
+
+    Returns:
+        Documento con todos sus descubrimientos e impactos
+    """
+    documento = get_object_or_404(
+        Documento.objects.prefetch_related(
+            "descubrimientos__impactos"
+        ),
+        id=documento_id,
+    )
+
+    return {
+        "id": documento.id,
+        "nombre": documento.nombre,
+        "fecha_carga": documento.fecha_carga,
+        "descubrimientos": [
+            {
+                "id": desc.id,
+                "proyecto_id": desc.proyecto_id,
+                "proyecto_titulo": desc.proyecto_titulo,
+                "descripcion_impacto_consolidada": desc.descripcion_impacto_consolidada,
+                "fecha_analisis": desc.fecha_analisis,
+                "impactos": [
+                    {
+                        "id": imp.id,
+                        "extracto_interno": imp.extracto_interno,
+                        "extracto_articulo": imp.extracto_articulo,
+                        "nivel_relevancia": imp.nivel_relevancia,
+                        "descripcion_impacto": imp.descripcion_impacto,
+                        "created_at": imp.created_at,
+                    }
+                    for imp in desc.impactos.all()
+                ],
+            }
+            for desc in documento.descubrimientos.all()
+        ],
+    }
+
+
+@router.delete("/documents/{documento_id}", auth=None)
+def delete_document(request, documento_id: int):
+    """
+    Elimina un documento y todos sus descubrimientos asociados.
+
+    Args:
+        documento_id: ID del documento a eliminar
+
+    Returns:
+        Mensaje de confirmación
+    """
+    documento = get_object_or_404(Documento, id=documento_id)
+    nombre = documento.nombre
+    documento.delete()
+
+    return {"success": True, "message": f"Documento '{nombre}' eliminado correctamente"}
+
+
+@router.get("/discoveries", response=list[DescubrimientoListSchema], auth=None)
+def list_discoveries(request):
+    """
+    Lista todos los descubrimientos de conflictos.
+
+    Returns:
+        Lista de descubrimientos con información básica y cantidad de impactos
+    """
+    descubrimientos = (
+        DescubrimientoConflicto.objects.select_related("documento")
+        .annotate(cantidad_impactos=Count("impactos"))
+        .all()
+    )
+
+    return [
+        {
+            "id": desc.id,
+            "proyecto_id": desc.proyecto_id,
+            "proyecto_titulo": desc.proyecto_titulo,
+            "descripcion_impacto_consolidada": desc.descripcion_impacto_consolidada,
+            "fecha_analisis": desc.fecha_analisis,
+            "cantidad_impactos": desc.cantidad_impactos,
+            "documento_nombre": desc.documento.nombre,
+            "documento_id": desc.documento.id,
+        }
+        for desc in descubrimientos
+    ]
+
+
+@router.get("/discoveries/{descubrimiento_id}", response=DescubrimientoDetailSchema, auth=None)
+def get_discovery_detail(request, descubrimiento_id: int):
+    """
+    Obtiene los detalles de un descubrimiento específico con todos sus impactos.
+
+    Args:
+        descubrimiento_id: ID del descubrimiento a consultar
+
+    Returns:
+        Descubrimiento con todos sus impactos y el documento asociado
+    """
+    descubrimiento = get_object_or_404(
+        DescubrimientoConflicto.objects.select_related("documento").prefetch_related(
+            "impactos"
+        ),
+        id=descubrimiento_id,
+    )
+
+    return {
+        "id": descubrimiento.id,
+        "proyecto_id": descubrimiento.proyecto_id,
+        "proyecto_titulo": descubrimiento.proyecto_titulo,
+        "descripcion_impacto_consolidada": descubrimiento.descripcion_impacto_consolidada,
+        "fecha_analisis": descubrimiento.fecha_analisis,
+        "documento": {
+            "id": descubrimiento.documento.id,
+            "nombre": descubrimiento.documento.nombre,
+            "fecha_carga": descubrimiento.documento.fecha_carga,
+            "cantidad_descubrimientos": descubrimiento.documento.descubrimientos.count(),
+        },
+        "impactos": [
+            {
+                "id": imp.id,
+                "extracto_interno": imp.extracto_interno,
+                "extracto_articulo": imp.extracto_articulo,
+                "nivel_relevancia": imp.nivel_relevancia,
+                "descripcion_impacto": imp.descripcion_impacto,
+                "created_at": imp.created_at,
+            }
+            for imp in descubrimiento.impactos.all()
+        ],
+    }

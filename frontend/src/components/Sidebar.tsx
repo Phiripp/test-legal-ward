@@ -21,7 +21,7 @@ export function Sidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 h-screen bg-[hsl(var(--sidebar-background))] text-[hsl(var(--sidebar-foreground))] transition-all duration-300 z-40",
+          "fixed left-0 top-0 h-screen bg-[hsl(var(--sidebar-background))] text-[hsl(var(--sidebar-foreground))] transition-all duration-300 z-40 flex-shrink-0",
           isOpen ? "w-64" : "w-16"
         )}
       >
@@ -93,7 +93,7 @@ export function Sidebar() {
       </aside>
 
       {/* Spacer */}
-      <div className={cn("transition-all duration-300", isOpen ? "w-64" : "w-16")} />
+      <div className={cn("transition-all duration-300 flex-shrink-0", isOpen ? "w-64" : "w-16")} />
     </>
   );
 }
