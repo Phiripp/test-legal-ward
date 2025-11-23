@@ -83,9 +83,9 @@ function Dashboard() {
     }
   };
 
-  const getImpactLevel = (cantidadImpactos: number): string => {
-    if (cantidadImpactos >= 3) return "Alto";
-    if (cantidadImpactos >= 1) return "Medio";
+  const getImpactLevel = (maxRelevancia: number): string => {
+    if (maxRelevancia >= 50) return "Alto";
+    if (maxRelevancia >= 30) return "Medio";
     return "Bajo";
   };
 
@@ -110,11 +110,11 @@ function Dashboard() {
   };
 
   // Calcular estadísticas
-  // Alto impacto: descubrimientos con 3+ impactos tanto en activos como en seguimiento
+  // Alto impacto: descubrimientos con max_nivel_relevancia >= 50 tanto en activos como en seguimiento
   const highImpactCount = [
     ...activeDiscoveries,
     ...trackingDiscoveries
-  ].filter(d => d.cantidad_impactos >= 3).length;
+  ].filter(d => d.max_nivel_relevancia >= 50).length;
 
   const stats = [
     {
@@ -199,7 +199,7 @@ function Dashboard() {
           ) : (
             <div className="space-y-4">
               {recentlyViewed.slice(0, 5).map((item) => {
-                const impactLevel = getImpactLevel(item.cantidad_impactos);
+                const impactLevel = getImpactLevel(item.max_nivel_relevancia);
                 const status = item.estado === 'TRACKING' 
                   ? 'En seguimiento' 
                   : item.estado === 'DISCARDED'
