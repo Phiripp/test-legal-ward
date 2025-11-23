@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Loader2, FileText, CheckCircle2, Clock, AlertCircle, ArrowDown } from "lucide-react";
+import { Loader2, FileText, CheckCircle2, Clock, AlertCircle, ArrowDown, FastForward } from "lucide-react";
 import { useState, useEffect } from "react";
-import { listTrackingDiscoveries, type DescubrimientoList } from "../../services/api/conflictDetector";
+import { listTrackingDiscoveries, advanceTime, type DescubrimientoList } from "../../services/api/conflictDetector";
 
 export const Route = createFileRoute("/_authenticated/tracking")({
   component: Tracking,
@@ -10,6 +10,7 @@ export const Route = createFileRoute("/_authenticated/tracking")({
 function Tracking() {
   const [discoveries, setDiscoveries] = useState<DescubrimientoList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdvancing, setIsAdvancing] = useState(false);
 
   useEffect(() => {
     loadTrackingDiscoveries();
@@ -27,6 +28,21 @@ function Tracking() {
     }
   };
 
+  const handleAdvanceTime = async () => {
+    try {
+      setIsAdvancing(true);
+      await advanceTime();
+      await loadTrackingDiscoveries();
+    } catch (error) {
+      console.error('Error al avanzar el tiempo:', error);
+    } finally {
+      setIsAdvancing(false);
+    }
+  };
+
+  const getImpactLevel = (cantidadImpactos: number): string => {
+    if (cantidadImpactos >= 3) return "Alto";
+    if (cantidadImpactos >= 1) return "Medio";
   const getImpactLevel = (maxRelevancia: number): string => {
     if (maxRelevancia >= 50) return "Alto";
     if (maxRelevancia >= 30) return "Medio";
@@ -69,31 +85,37 @@ function Tracking() {
   };
 
   const getTimelineFromEtapa = (etapa: number | null | undefined, proyectoFecha: string | null | undefined) => {
-    const fechaIngreso = proyectoFecha ? formatDate(proyectoFecha) : null;
-    
-    // Determinar el estado de cada etapa basado en la etapa actual
     const etapaActual = etapa || 1;
+    
+    // Helper para agregar días a una fecha y formatearla
+    const addDaysAndFormat = (dateString: string, days: number): string => {
+      const date = new Date(dateString);
+      date.setDate(date.getDate() + days);
+      return formatDate(date.toISOString());
+    };
+    
+    const fechaIngreso = proyectoFecha ? formatDate(proyectoFecha) : null;
     
     const timeline = [
       { 
         stage: "Ingreso", 
         status: etapaActual >= 1 ? (etapaActual === 1 ? "in-progress" : "completed") : "pending", 
-        date: fechaIngreso 
+        date: etapaActual > 1 ? fechaIngreso : null
       },
       { 
         stage: "Primera Cámara", 
         status: etapaActual >= 2 ? (etapaActual === 2 ? "in-progress" : "completed") : "pending", 
-        date: etapaActual >= 2 ? fechaIngreso : null 
+        date: etapaActual > 2 && proyectoFecha ? addDaysAndFormat(proyectoFecha, 45) : null 
       },
       { 
         stage: "Segunda Cámara", 
         status: etapaActual >= 3 ? (etapaActual === 3 ? "in-progress" : "completed") : "pending", 
-        date: etapaActual >= 3 ? fechaIngreso : null 
+        date: etapaActual > 3 && proyectoFecha ? addDaysAndFormat(proyectoFecha, 120) : null 
       },
       { 
         stage: "Promulgación", 
         status: etapaActual >= 4 ? (etapaActual === 4 ? "in-progress" : "completed") : "pending", 
-        date: etapaActual >= 4 ? fechaIngreso : null 
+        date: etapaActual > 4 && proyectoFecha ? addDaysAndFormat(proyectoFecha, 180) : null 
       },
     ];
 
@@ -102,11 +124,30 @@ function Tracking() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Seguimiento</h1>
-        <p className="text-muted-foreground">
-          Proyectos de ley que estás monitoreando activamente
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Seguimiento</h1>
+          <p className="text-muted-foreground">
+            Proyectos de ley que estás monitoreando activamente
+          </p>
+        </div>
+        <button
+          onClick={handleAdvanceTime}
+          disabled={isAdvancing || discoveries.length === 0}
+          className="flex items-center gap-2 px-4 py-2 bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-lg hover:bg-[hsl(var(--primary))]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+        >
+          {isAdvancing ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Avanzando...
+            </>
+          ) : (
+            <>
+              <FastForward className="h-4 w-4" />
+              Avanzar Tiempo (Demo)
+            </>
+          )}
+        </button>
       </div>
 
       {isLoading ? (

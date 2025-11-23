@@ -305,3 +305,36 @@ def discard_discovery(request, descubrimiento_id: int):
         "message": f"Descubrimiento '{descubrimiento.proyecto_id}' descartado",
         "estado": descubrimiento.estado,
     }
+
+
+@router.post("/demo/advance-time")
+def advance_time(request):
+    """
+    Avanza las etapas de los proyectos de ley en seguimiento (para demo).
+    Incrementa la etapa de cada proyecto en 1 (máximo 4).
+
+    Returns:
+        Mensaje de confirmación con cantidad de proyectos actualizados
+    """
+    # Obtener todos los proyectos que tienen descubrimientos en seguimiento
+    descubrimientos_tracking = DescubrimientoConflicto.objects.filter(
+        documento__user=request.user,
+        estado=DescubrimientoConflicto.Estado.TRACKING
+    ).values_list('proyecto_id', flat=True).distinct()
+
+    proyectos_actualizados = 0
+    for proyecto_id in descubrimientos_tracking:
+        try:
+            proyecto = ProyectoLey.objects.get(proyecto_id=proyecto_id)
+            if proyecto.etapa < 4:
+                proyecto.etapa += 1
+                proyecto.save()
+                proyectos_actualizados += 1
+        except ProyectoLey.DoesNotExist:
+            continue
+
+    return {
+        "success": True,
+        "message": f"Se avanzó la etapa de {proyectos_actualizados} proyecto(s)",
+        "proyectos_actualizados": proyectos_actualizados,
+    }
