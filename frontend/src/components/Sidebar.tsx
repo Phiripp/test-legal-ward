@@ -1,20 +1,37 @@
-import { LayoutDashboard, FileText, Search, Eye, Settings, X } from "lucide-react";
+import { LayoutDashboard, FileText, Search, Eye, X } from "lucide-react";
 import { Link, useMatchRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import logoLW from "@/assets/logo_lw.svg";
+import { listDiscoveries } from "@/services/api/conflictDetector";
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Documentos", url: "/documents", icon: FileText },
-  { title: "Descubrimientos", url: "/discoveries", icon: Search },
+  { title: "Descubrimientos", url: "/discoveries", icon: Search, showBadge: true },
   { title: "Seguimiento", url: "/tracking", icon: Eye },
-  { title: "Configuración", url: "/settings", icon: Settings },
 ];
 
 export function Sidebar() {
   const [isOpen, setIsOpen] = useState(true);
+  const [pendingCount, setPendingCount] = useState<number>(0);
   const matchRoute = useMatchRoute();
+
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      try {
+        const discoveries = await listDiscoveries();
+        setPendingCount(discoveries.length);
+      } catch (error) {
+        console.error("Error fetching pending discoveries:", error);
+      }
+    };
+
+    fetchPendingCount();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchPendingCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <>
@@ -70,20 +87,31 @@ export function Sidebar() {
             {items.map((item) => {
               const isActive = !!matchRoute({ to: item.url, fuzzy: false });
               const Icon = item.icon;
+              const showNotification = item.showBadge && pendingCount > 0;
 
               return (
                 <li key={item.title}>
                   <Link
                     to={item.url}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                      "flex items-center gap-3 px-3 py-2 rounded-md transition-colors relative",
                       isActive
                         ? "bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-accent-foreground))]"
                         : "hover:bg-[hsl(var(--sidebar-accent))]/50"
                     )}
                   >
                     <Icon className="h-5 w-5 flex-shrink-0" />
-                    {isOpen && <span>{item.title}</span>}
+                    {isOpen && (
+                      <span className="flex-1">{item.title}</span>
+                    )}
+                    {showNotification && (
+                      <span className={cn(
+                        "flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-bold min-w-[20px] h-5 px-1.5",
+                        !isOpen && "absolute -top-1 -right-1"
+                      )}>
+                        {pendingCount > 99 ? '99+' : pendingCount}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );
