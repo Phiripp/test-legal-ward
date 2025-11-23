@@ -170,20 +170,24 @@ function ProjectDetail() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleDiscard}
-            className="flex items-center gap-2 px-4 py-2 text-sm border border-[hsl(var(--border))] rounded-md hover:bg-[hsl(var(--muted))] transition-colors"
-          >
-            <X className="h-4 w-4" />
-            Descartar
-          </button>
-          <button
-            onClick={handleTrack}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-[hsl(var(--primary))] text-white rounded-md hover:opacity-90 transition-opacity"
-          >
-            <Eye className="h-4 w-4" />
-            Dar Seguimiento
-          </button>
+          {discovery.estado !== 'DISCARDED' && (
+            <button
+              onClick={handleDiscard}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-[hsl(var(--border))] rounded-md hover:bg-[hsl(var(--muted))] transition-colors"
+            >
+              <X className="h-4 w-4" />
+              Descartar
+            </button>
+          )}
+          {discovery.estado !== 'TRACKING' && (
+            <button
+              onClick={handleTrack}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-[hsl(var(--primary))] text-white rounded-md hover:opacity-90 transition-opacity"
+            >
+              <Eye className="h-4 w-4" />
+              Dar Seguimiento
+            </button>
+          )}
         </div>
       </div>
 

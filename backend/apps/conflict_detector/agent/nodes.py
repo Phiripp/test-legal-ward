@@ -580,8 +580,8 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
                     f"max_relevancia={max_nivel_relevancia}"
                 )
 
-    logger.info(
-        f"Procesamiento completado: {len(proyectos_ley_impacto or [])} proyectos con impacto"
-    )
+        logger.info(
+            f"Procesamiento completado: {len(proyectos_ley_impacto or [])} proyectos con impacto"
+        )
     state.proyecto_ley_impacto = proyectos_ley_impacto
     return state
