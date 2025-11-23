@@ -41,6 +41,7 @@ function ProjectDetail() {
         proyecto_id: data.proyecto_id,
         proyecto_titulo: data.proyecto_titulo,
         cantidad_impactos: data.impactos.length,
+        max_nivel_relevancia: data.max_nivel_relevancia,
         estado: data.estado,
       });
     } catch (err) {
