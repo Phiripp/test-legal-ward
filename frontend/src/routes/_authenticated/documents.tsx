@@ -8,6 +8,7 @@ import {
   type DetectConflictsResponse,
   type DocumentoList
 } from "../../services/api/conflictDetector";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 
 export const Route = createFileRoute("/_authenticated/documents")({
   component: Documents,
@@ -20,6 +21,8 @@ function Documents() {
   const [detectionResult, setDetectionResult] = useState<DetectConflictsResponse | null>(null);
   const [documents, setDocuments] = useState<DocumentoList[]>([]);
   const [showUploadMenu, setShowUploadMenu] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<{ id: number; nombre: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Cargar documentos al montar el componente
@@ -82,18 +85,23 @@ function Documents() {
     }
   };
 
-  const handleDeleteDocument = async (documentId: number, documentName: string) => {
-    if (!confirm(`¿Estás seguro de eliminar el documento "${documentName}"?`)) {
-      return;
-    }
+  const handleDeleteDocument = (documentId: number, documentName: string) => {
+    setDocumentToDelete({ id: documentId, nombre: documentName });
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDeleteDocument = async () => {
+    if (!documentToDelete) return;
 
     try {
-      await deleteDocument(documentId);
+      await deleteDocument(documentToDelete.id);
       // Recargar la lista de documentos
       await loadDocuments();
     } catch (error) {
       console.error('Error al eliminar documento:', error);
-      alert(error instanceof Error ? error.message : 'Error al eliminar el documento');
+      setUploadError(error instanceof Error ? error.message : 'Error al eliminar el documento');
+    } finally {
+      setDocumentToDelete(null);
     }
   };
 
@@ -269,6 +277,17 @@ function Documents() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={confirmDeleteDocument}
+        title="Eliminar documento"
+        message={`¿Estás seguro de eliminar el documento "${documentToDelete?.nombre}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="danger"
+      />
     </div>
   );
 }
