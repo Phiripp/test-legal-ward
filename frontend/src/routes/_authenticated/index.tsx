@@ -1,62 +1,160 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { AlertTriangle, FileText, Eye, TrendingUp } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { AlertTriangle, FileText, Eye, TrendingUp, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { 
+  listDocuments, 
+  listDiscoveries, 
+  listTrackingDiscoveries,
+  type DescubrimientoList 
+} from "../../services/api/conflictDetector";
+import { 
+  getRecentlyViewedDiscoveries, 
+  type RecentlyViewedDiscovery 
+} from "../../lib/utils";
 
 export const Route = createFileRoute("/_authenticated/")({
   component: Dashboard,
 });
 
 function Dashboard() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [documentsCount, setDocumentsCount] = useState(0);
+  const [activeDiscoveries, setActiveDiscoveries] = useState<DescubrimientoList[]>([]);
+  const [trackingDiscoveries, setTrackingDiscoveries] = useState<DescubrimientoList[]>([]);
+  const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedDiscovery[]>([]);
+
+  useEffect(() => {
+    loadDashboardData();
+    
+    // Función para actualizar proyectos vistos recientemente
+    const updateRecentlyViewed = () => {
+      const viewed = getRecentlyViewedDiscoveries();
+      const sorted = viewed.sort((a, b) => {
+        return new Date(b.viewedAt).getTime() - new Date(a.viewedAt).getTime();
+      });
+      setRecentlyViewed(sorted);
+    };
+    
+    // Actualizar cuando la página se vuelve visible (cuando se vuelve de otra página)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        updateRecentlyViewed();
+      }
+    };
+    
+    // Actualizar cuando se hace focus en la ventana
+    const handleFocus = () => {
+      updateRecentlyViewed();
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setIsLoading(true);
+      const [documents, discoveries, tracking] = await Promise.all([
+        listDocuments(),
+        listDiscoveries(),
+        listTrackingDiscoveries(),
+      ]);
+
+      setDocumentsCount(documents.length);
+      setActiveDiscoveries(discoveries);
+      setTrackingDiscoveries(tracking);
+
+      // Cargar proyectos vistos recientemente desde localStorage
+      const viewed = getRecentlyViewedDiscoveries();
+      // Ordenar por fecha de visualización (más recientes primero)
+      const sorted = viewed.sort((a, b) => {
+        return new Date(b.viewedAt).getTime() - new Date(a.viewedAt).getTime();
+      });
+      setRecentlyViewed(sorted);
+    } catch (error) {
+      console.error('Error al cargar datos del dashboard:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getImpactLevel = (cantidadImpactos: number): string => {
+    if (cantidadImpactos >= 3) return "Alto";
+    if (cantidadImpactos >= 1) return "Medio";
+    return "Bajo";
+  };
+
+  const formatRelativeTime = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "Hace menos de un minuto";
+    if (diffMins < 60) return `Hace ${diffMins} ${diffMins === 1 ? 'minuto' : 'minutos'}`;
+    if (diffHours < 24) return `Hace ${diffHours} ${diffHours === 1 ? 'hora' : 'horas'}`;
+    if (diffDays < 7) return `Hace ${diffDays} ${diffDays === 1 ? 'día' : 'días'}`;
+    
+    return date.toLocaleDateString('es-ES', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  // Calcular estadísticas
+  // Alto impacto: descubrimientos con 3+ impactos tanto en activos como en seguimiento
+  const highImpactCount = [
+    ...activeDiscoveries,
+    ...trackingDiscoveries
+  ].filter(d => d.cantidad_impactos >= 3).length;
+
   const stats = [
     {
       title: "Documentos Subidos",
-      value: "24",
+      value: documentsCount.toString(),
       description: "En tu perfil corporativo",
       icon: FileText,
       color: "text-primary",
     },
     {
       title: "Descubrimientos Activos",
-      value: "8",
+      value: activeDiscoveries.length.toString(),
       description: "Proyectos de ley detectados",
       icon: AlertTriangle,
       color: "text-[hsl(var(--alert-medium))]",
     },
     {
       title: "En Seguimiento",
-      value: "5",
+      value: trackingDiscoveries.length.toString(),
       description: "Proyectos monitoreados",
       icon: Eye,
       color: "text-[hsl(var(--status-active))]",
     },
     {
       title: "Alto Impacto",
-      value: "2",
+      value: highImpactCount.toString(),
       description: "Requieren atención urgente",
       icon: TrendingUp,
       color: "text-[hsl(var(--alert-high))]",
     },
   ];
 
-  const recentActivity = [
-    {
-      project: "Ley de Protección de Datos Personales",
-      status: "Nueva coincidencia",
-      impact: "Alto",
-      date: "Hace 2 horas",
-    },
-    {
-      project: "Reforma Laboral - Art. 152",
-      status: "Actualización disponible",
-      impact: "Medio",
-      date: "Hace 5 horas",
-    },
-    {
-      project: "Ley de Transparencia Corporativa",
-      status: "Votación en Senado",
-      impact: "Alto",
-      date: "Hace 1 día",
-    },
-  ];
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--primary))]" />
+        <span className="ml-3 text-muted-foreground">Cargando dashboard...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -85,37 +183,64 @@ function Dashboard() {
 
       <div className="bg-card rounded-lg border border-border">
         <div className="p-6 border-b border-border">
-          <h3 className="text-lg font-semibold">Actividad Reciente</h3>
+          <h3 className="text-lg font-semibold">Proyectos Vistos Recientemente</h3>
           <p className="text-sm text-muted-foreground">
-            Últimas actualizaciones en proyectos de ley relevantes
+            Proyectos de ley que has consultado recientemente
           </p>
         </div>
         <div className="p-6">
-          <div className="space-y-4">
-            {recentActivity.map((activity, index) => (
-              <div
-                key={index}
-                className="flex items-start justify-between border-b border-border pb-4 last:border-0 last:pb-0"
-              >
-                <div className="space-y-1">
-                  <p className="font-medium text-foreground">{activity.project}</p>
-                  <p className="text-sm text-muted-foreground">{activity.status}</p>
-                </div>
-                <div className="text-right space-y-1">
-                  <span
-                    className={`inline-block px-2 py-1 text-xs font-medium rounded ${
-                      activity.impact === "Alto"
-                        ? "bg-[hsl(var(--alert-high))] text-[hsl(var(--alert-high-foreground))]"
-                        : "bg-[hsl(var(--alert-medium))] text-[hsl(var(--alert-medium-foreground))]"
-                    }`}
+          {recentlyViewed.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">No has visto ningún proyecto recientemente</p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Los proyectos que consultes aparecerán aquí
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {recentlyViewed.slice(0, 5).map((item) => {
+                const impactLevel = getImpactLevel(item.cantidad_impactos);
+                const status = item.estado === 'TRACKING' 
+                  ? 'En seguimiento' 
+                  : item.estado === 'DISCARDED'
+                  ? 'Descartado'
+                  : 'Pendiente';
+                
+                return (
+                  <Link
+                    key={item.id}
+                    to="/discoveries/$id"
+                    params={{ id: String(item.id) }}
+                    search={{ from: undefined }}
+                    className="block"
                   >
-                    {activity.impact}
-                  </span>
-                  <p className="text-xs text-muted-foreground">{activity.date}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+                    <div className="flex items-start justify-between border-b border-border pb-4 last:border-0 last:pb-0 hover:bg-[hsl(var(--muted))]/30 -mx-2 px-2 py-2 rounded transition-colors">
+                      <div className="space-y-1 flex-1">
+                        <p className="font-medium text-foreground">{item.proyecto_titulo}</p>
+                        <p className="text-sm text-muted-foreground">{status}</p>
+                      </div>
+                      <div className="text-right space-y-1">
+                        <span
+                          className={`inline-block px-2 py-1 text-xs font-medium rounded ${
+                            impactLevel === "Alto"
+                              ? "bg-[hsl(var(--alert-high))] text-[hsl(var(--alert-high-foreground))]"
+                              : impactLevel === "Medio"
+                              ? "bg-[hsl(var(--alert-medium))] text-[hsl(var(--alert-medium-foreground))]"
+                              : "bg-[hsl(var(--alert-low))] text-[hsl(var(--alert-low-foreground))]"
+                          }`}
+                        >
+                          {impactLevel}
+                        </span>
+                        <p className="text-xs text-muted-foreground">
+                          {formatRelativeTime(item.viewedAt)}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

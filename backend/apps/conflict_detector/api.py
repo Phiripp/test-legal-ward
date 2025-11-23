@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404
 from ninja import File, Router, UploadedFile
 
 from .models import Documento, DescubrimientoConflicto
+from apps.proyectos_ley.models import ProyectoLey
 from .schemas import (
     DescubrimientoDetailSchema,
     DescubrimientoListSchema,
@@ -126,7 +127,8 @@ def delete_document(request, documento_id: int):
 @router.get("/discoveries", response=list[DescubrimientoListSchema], auth=None)
 def list_discoveries(request):
     """
-    Lista todos los descubrimientos de conflictos.
+    Lista todos los descubrimientos de conflictos pendientes.
+    Excluye los descubrimientos descartados y los que están en seguimiento.
 
     Returns:
         Lista de descubrimientos con información básica y cantidad de impactos
@@ -134,7 +136,8 @@ def list_discoveries(request):
     descubrimientos = (
         DescubrimientoConflicto.objects.select_related("documento")
         .annotate(cantidad_impactos=Count("impactos"))
-        .all()
+        .filter(estado=DescubrimientoConflicto.Estado.PENDING)
+        .order_by("-max_nivel_relevancia")
     )
 
     return [
@@ -145,11 +148,60 @@ def list_discoveries(request):
             "descripcion_impacto_consolidada": desc.descripcion_impacto_consolidada,
             "fecha_analisis": desc.fecha_analisis,
             "cantidad_impactos": desc.cantidad_impactos,
+            "max_nivel_relevancia": desc.max_nivel_relevancia,
             "documento_nombre": desc.documento.nombre,
             "documento_id": desc.documento.id,
+            "estado": desc.estado,
         }
         for desc in descubrimientos
     ]
+
+
+@router.get("/discoveries/tracking", response=list[DescubrimientoListSchema], auth=None)
+def list_tracking_discoveries(request):
+    """
+    Lista todos los descubrimientos que están en seguimiento.
+    Incluye información del proyecto de ley (etapa, fecha, etc.)
+
+    Returns:
+        Lista de descubrimientos en seguimiento con información básica y cantidad de impactos
+    """
+    descubrimientos = (
+        DescubrimientoConflicto.objects.select_related("documento")
+        .annotate(cantidad_impactos=Count("impactos"))
+        .filter(estado=DescubrimientoConflicto.Estado.TRACKING)
+    )
+
+    result = []
+    for desc in descubrimientos:
+        # Intentar obtener el proyecto de ley relacionado
+        try:
+            proyecto_ley = ProyectoLey.objects.get(proyecto_id=desc.proyecto_id)
+            proyecto_etapa = proyecto_ley.etapa
+            proyecto_fecha = proyecto_ley.fecha
+            proyecto_camara_origen = proyecto_ley.camara_origen
+        except ProyectoLey.DoesNotExist:
+            # Si no existe el proyecto, usar valores por defecto
+            proyecto_etapa = 1
+            proyecto_fecha = desc.fecha_analisis.date()
+            proyecto_camara_origen = ""
+
+        result.append({
+            "id": desc.id,
+            "proyecto_id": desc.proyecto_id,
+            "proyecto_titulo": desc.proyecto_titulo,
+            "descripcion_impacto_consolidada": desc.descripcion_impacto_consolidada,
+            "fecha_analisis": desc.fecha_analisis,
+            "cantidad_impactos": desc.cantidad_impactos,
+            "documento_nombre": desc.documento.nombre,
+            "documento_id": desc.documento.id,
+            "estado": desc.estado,
+            "proyecto_etapa": proyecto_etapa,
+            "proyecto_fecha": proyecto_fecha.isoformat() if proyecto_fecha else None,
+            "proyecto_camara_origen": proyecto_camara_origen,
+        })
+
+    return result
 
 
 @router.get("/discoveries/{descubrimiento_id}", response=DescubrimientoDetailSchema, auth=None)
@@ -176,6 +228,8 @@ def get_discovery_detail(request, descubrimiento_id: int):
         "proyecto_titulo": descubrimiento.proyecto_titulo,
         "descripcion_impacto_consolidada": descubrimiento.descripcion_impacto_consolidada,
         "fecha_analisis": descubrimiento.fecha_analisis,
+        "estado": descubrimiento.estado,
+        "max_nivel_relevancia": descubrimiento.max_nivel_relevancia,
         "documento": {
             "id": descubrimiento.documento.id,
             "nombre": descubrimiento.documento.nombre,
@@ -185,6 +239,7 @@ def get_discovery_detail(request, descubrimiento_id: int):
         "impactos": [
             {
                 "id": imp.id,
+                "articulo_numero": imp.articulo_numero,
                 "extracto_interno": imp.extracto_interno,
                 "extracto_articulo": imp.extracto_articulo,
                 "nivel_relevancia": imp.nivel_relevancia,
@@ -193,4 +248,51 @@ def get_discovery_detail(request, descubrimiento_id: int):
             }
             for imp in descubrimiento.impactos.all()
         ],
+    }
+
+
+@router.post("/discoveries/{descubrimiento_id}/track", auth=None)
+def track_discovery(request, descubrimiento_id: int):
+    """
+    Marca un descubrimiento como en seguimiento.
+    El descubrimiento dejará de aparecer en la vista de descubrimientos
+    y comenzará a aparecer en la vista de seguimiento.
+
+    Args:
+        descubrimiento_id: ID del descubrimiento a marcar como en seguimiento
+
+    Returns:
+        Mensaje de confirmación con el descubrimiento actualizado
+    """
+    descubrimiento = get_object_or_404(DescubrimientoConflicto, id=descubrimiento_id)
+    descubrimiento.estado = DescubrimientoConflicto.Estado.TRACKING
+    descubrimiento.save()
+
+    return {
+        "success": True,
+        "message": f"Descubrimiento '{descubrimiento.proyecto_id}' marcado como en seguimiento",
+        "estado": descubrimiento.estado,
+    }
+
+
+@router.post("/discoveries/{descubrimiento_id}/discard", auth=None)
+def discard_discovery(request, descubrimiento_id: int):
+    """
+    Marca un descubrimiento como descartado.
+    El descubrimiento dejará de aparecer en la vista de descubrimientos.
+
+    Args:
+        descubrimiento_id: ID del descubrimiento a descartar
+
+    Returns:
+        Mensaje de confirmación con el descubrimiento actualizado
+    """
+    descubrimiento = get_object_or_404(DescubrimientoConflicto, id=descubrimiento_id)
+    descubrimiento.estado = DescubrimientoConflicto.Estado.DISCARDED
+    descubrimiento.save()
+
+    return {
+        "success": True,
+        "message": f"Descubrimiento '{descubrimiento.proyecto_id}' descartado",
+        "estado": descubrimiento.estado,
     }

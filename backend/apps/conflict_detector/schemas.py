@@ -9,6 +9,7 @@ class ImpactoDescubiertoSchema(Schema):
     """Schema para un impacto descubierto."""
 
     id: int
+    articulo_numero: int
     extracto_interno: str
     extracto_articulo: str
     nivel_relevancia: int
@@ -54,8 +55,13 @@ class DescubrimientoListSchema(Schema):
     descripcion_impacto_consolidada: str | None
     fecha_analisis: datetime
     cantidad_impactos: int
+    max_nivel_relevancia: int
     documento_nombre: str
     documento_id: int
+    estado: str
+    proyecto_etapa: int | None = None
+    proyecto_fecha: str | None = None
+    proyecto_camara_origen: str | None = None
 
 
 class DescubrimientoDetailSchema(Schema):
@@ -66,5 +72,7 @@ class DescubrimientoDetailSchema(Schema):
     proyecto_titulo: str
     descripcion_impacto_consolidada: str | None
     fecha_analisis: datetime
+    estado: str
+    max_nivel_relevancia: int
     documento: DocumentoListSchema
     impactos: list[ImpactoDescubiertoSchema]

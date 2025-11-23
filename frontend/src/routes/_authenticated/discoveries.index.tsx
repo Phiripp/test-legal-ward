@@ -1,14 +1,12 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Eye, X, ExternalLink, AlertTriangle, Loader2, FileText } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Eye, X, AlertTriangle, Loader2, FileText } from "lucide-react";
 import { useState, useEffect } from "react";
-import { listDiscoveries, type DescubrimientoList } from "../../services/api/conflictDetector";
-
+import { listDiscoveries, trackDiscovery, discardDiscovery, type DescubrimientoList } from "../../services/api/conflictDetector";
 export const Route = createFileRoute("/_authenticated/discoveries/")({
   component: Discoveries,
 });
 
 function Discoveries() {
-  const navigate = useNavigate();
   const [discoveries, setDiscoveries] = useState<DescubrimientoList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -28,9 +26,9 @@ function Discoveries() {
     }
   };
 
-  const getImpactLevel = (cantidadImpactos: number): string => {
-    if (cantidadImpactos >= 3) return "Alto";
-    if (cantidadImpactos >= 1) return "Medio";
+  const getImpactLevel = (maxRelevancia: number): string => {
+    if (maxRelevancia >= 50) return "Alto";
+    if (maxRelevancia >= 30) return "Medio";
     return "Bajo";
   };
 
@@ -54,6 +52,28 @@ function Discoveries() {
       month: 'short',
       year: 'numeric'
     });
+  };
+
+  const handleDiscard = async (discoveryId: number) => {
+    try {
+      await discardDiscovery(discoveryId);
+      // Recargar la lista de descubrimientos
+      await loadDiscoveries();
+    } catch (error) {
+      console.error('Error al descartar descubrimiento:', error);
+      alert('Error al descartar el descubrimiento. Por favor, intenta nuevamente.');
+    }
+  };
+
+  const handleTrack = async (discoveryId: number) => {
+    try {
+      await trackDiscovery(discoveryId);
+      // Recargar la lista de descubrimientos
+      await loadDiscoveries();
+    } catch (error) {
+      console.error('Error al dar seguimiento:', error);
+      alert('Error al dar seguimiento al descubrimiento. Por favor, intenta nuevamente.');
+    }
   };
 
   return (
@@ -81,7 +101,7 @@ function Discoveries() {
       ) : (
         <div className="grid gap-4">
           {discoveries.map((discovery) => {
-            const impactLevel = getImpactLevel(discovery.cantidad_impactos);
+            const impactLevel = getImpactLevel(discovery.max_nivel_relevancia);
             return (
               <div
                 key={discovery.id}
@@ -91,6 +111,7 @@ function Discoveries() {
                   <Link
                     to="/discoveries/$id"
                     params={{ id: String(discovery.id) }}
+                    search={{ from: undefined }}
                     className="flex items-start justify-between gap-4 block"
                   >
                     <div className="flex-1 space-y-2">
@@ -113,8 +134,6 @@ function Discoveries() {
 
                   <div className="flex items-center justify-between pt-3 border-t border-[hsl(var(--border))]">
                     <div className="flex items-center gap-4 text-sm text-[hsl(var(--muted-foreground))]">
-                      <span>Proyecto {discovery.proyecto_id}</span>
-                      <span>•</span>
                       <span>{discovery.cantidad_impactos} impacto(s) detectado(s)</span>
                       <span>•</span>
                       <span>Analizado: {formatDate(discovery.fecha_analisis)}</span>
@@ -122,22 +141,18 @@ function Discoveries() {
 
                     <div className="flex items-center gap-2">
                       <button
+                        onClick={() => handleDiscard(discovery.id)}
                         className="px-3 py-1.5 text-sm border border-[hsl(var(--border))] rounded-md hover:bg-[hsl(var(--accent))] flex items-center gap-2"
                       >
                         <X className="h-4 w-4" />
                         Descartar
                       </button>
                       <button
+                        onClick={() => handleTrack(discovery.id)}
                         className="px-3 py-1.5 text-sm bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-md hover:bg-[hsl(var(--primary))]/90 flex items-center gap-2"
-                        onClick={() => navigate({ to: "/tracking" })}
                       >
                         <Eye className="h-4 w-4" />
                         Dar Seguimiento
-                      </button>
-                      <button
-                        className="p-1.5 hover:bg-[hsl(var(--accent))] rounded-md"
-                      >
-                        <ExternalLink className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
