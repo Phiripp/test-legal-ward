@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Eye, X, AlertTriangle, Loader2, FileText } from "lucide-react";
 import { useState, useEffect } from "react";
-import { listDiscoveries, type DescubrimientoList } from "../../services/api/conflictDetector";
+import { listDiscoveries, trackDiscovery, discardDiscovery, type DescubrimientoList } from "../../services/api/conflictDetector";
 
 export const Route = createFileRoute("/_authenticated/discoveries/")({
   component: Discoveries,
@@ -54,6 +54,28 @@ function Discoveries() {
       month: 'short',
       year: 'numeric'
     });
+  };
+
+  const handleDiscard = async (discoveryId: number) => {
+    try {
+      await discardDiscovery(discoveryId);
+      // Recargar la lista de descubrimientos
+      await loadDiscoveries();
+    } catch (error) {
+      console.error('Error al descartar descubrimiento:', error);
+      alert('Error al descartar el descubrimiento. Por favor, intenta nuevamente.');
+    }
+  };
+
+  const handleTrack = async (discoveryId: number) => {
+    try {
+      await trackDiscovery(discoveryId);
+      // Recargar la lista de descubrimientos
+      await loadDiscoveries();
+    } catch (error) {
+      console.error('Error al dar seguimiento:', error);
+      alert('Error al dar seguimiento al descubrimiento. Por favor, intenta nuevamente.');
+    }
   };
 
   return (
@@ -120,14 +142,15 @@ function Discoveries() {
 
                     <div className="flex items-center gap-2">
                       <button
+                        onClick={() => handleDiscard(discovery.id)}
                         className="px-3 py-1.5 text-sm border border-[hsl(var(--border))] rounded-md hover:bg-[hsl(var(--accent))] flex items-center gap-2"
                       >
                         <X className="h-4 w-4" />
                         Descartar
                       </button>
                       <button
+                        onClick={() => handleTrack(discovery.id)}
                         className="px-3 py-1.5 text-sm bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-md hover:bg-[hsl(var(--primary))]/90 flex items-center gap-2"
-                        onClick={() => navigate({ to: "/tracking" })}
                       >
                         <Eye className="h-4 w-4" />
                         Dar Seguimiento

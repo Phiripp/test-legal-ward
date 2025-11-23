@@ -24,6 +24,11 @@ class Documento(models.Model):
 class DescubrimientoConflicto(models.Model):
     """Representa un descubrimiento de conflicto entre un documento y un proyecto de ley."""
 
+    class Estado(models.TextChoices):
+        PENDING = "PENDING", "Pendiente"
+        TRACKING = "TRACKING", "En Seguimiento"
+        DISCARDED = "DISCARDED", "Descartado"
+
     documento = models.ForeignKey(
         Documento,
         on_delete=models.CASCADE,
@@ -36,6 +41,12 @@ class DescubrimientoConflicto(models.Model):
         help_text="Nivel máximo de relevancia entre todos los impactos (0-100)"
     )
     descripcion_impacto_consolidada = models.TextField(blank=True, null=True)
+    estado = models.CharField(
+        max_length=20,
+        choices=Estado.choices,
+        default=Estado.PENDING,
+        help_text="Estado del descubrimiento: Pendiente, En Seguimiento o Descartado"
+    )
     fecha_analisis = models.DateTimeField(auto_now_add=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

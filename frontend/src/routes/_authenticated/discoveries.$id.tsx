@@ -1,21 +1,30 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Eye, X, ArrowLeft, FileText, Scale, Loader2 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
-import { getDiscoveryDetail, type DescubrimientoDetail } from "../../services/api/conflictDetector";
+import { getDiscoveryDetail, trackDiscovery, discardDiscovery, type DescubrimientoDetail } from "../../services/api/conflictDetector";
 import ReactMarkdown from "react-markdown";
 
 export const Route = createFileRoute("/_authenticated/discoveries/$id")({
   component: ProjectDetail,
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      from: (search.from as string) || undefined,
+    };
+  },
 });
 
 function ProjectDetail() {
   const navigate = useNavigate();
   const { id } = Route.useParams();
+  const search = Route.useSearch();
   const [discovery, setDiscovery] = useState<DescubrimientoDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [visibleImpactos, setVisibleImpactos] = useState(10);
   const IMPACTOS_PER_PAGE = 10;
+  
+  // Determinar si viene de seguimiento
+  const fromTracking = search.from === 'tracking';
 
   const loadDiscovery = useCallback(async () => {
     try {
@@ -62,6 +71,30 @@ function ProjectDetail() {
     });
   };
 
+  const handleDiscard = async () => {
+    if (!discovery) return;
+    try {
+      await discardDiscovery(discovery.id);
+      // Redirigir a la lista de descubrimientos
+      navigate({ to: "/discoveries" });
+    } catch (error) {
+      console.error('Error al descartar descubrimiento:', error);
+      alert('Error al descartar el descubrimiento. Por favor, intenta nuevamente.');
+    }
+  };
+
+  const handleTrack = async () => {
+    if (!discovery) return;
+    try {
+      await trackDiscovery(discovery.id);
+      // Redirigir a la vista de seguimiento
+      navigate({ to: "/tracking" });
+    } catch (error) {
+      console.error('Error al dar seguimiento:', error);
+      alert('Error al dar seguimiento al descubrimiento. Por favor, intenta nuevamente.');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -77,10 +110,10 @@ function ProjectDetail() {
         <h3 className="text-lg font-semibold text-foreground mb-2">Error al cargar</h3>
         <p className="text-muted-foreground">{error || 'No se encontró el descubrimiento'}</p>
         <button
-          onClick={() => navigate({ to: "/discoveries" })}
+          onClick={() => navigate({ to: fromTracking ? "/tracking" : "/discoveries" })}
           className="mt-4 px-4 py-2 bg-[hsl(var(--primary))] text-white rounded-md"
         >
-          Volver a Descubrimientos
+          {fromTracking ? "Volver a Seguimiento" : "Volver a Descubrimientos"}
         </button>
       </div>
     );
@@ -92,7 +125,7 @@ function ProjectDetail() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <button
-          onClick={() => navigate({ to: "/discoveries" })}
+          onClick={() => navigate({ to: fromTracking ? "/tracking" : "/discoveries" })}
           className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[hsl(var(--muted))] rounded-md transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -121,11 +154,17 @@ function ProjectDetail() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 text-sm border border-[hsl(var(--border))] rounded-md hover:bg-[hsl(var(--muted))] transition-colors">
+          <button
+            onClick={handleDiscard}
+            className="flex items-center gap-2 px-4 py-2 text-sm border border-[hsl(var(--border))] rounded-md hover:bg-[hsl(var(--muted))] transition-colors"
+          >
             <X className="h-4 w-4" />
             Descartar
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 text-sm bg-[hsl(var(--primary))] text-white rounded-md hover:opacity-90 transition-opacity">
+          <button
+            onClick={handleTrack}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-[hsl(var(--primary))] text-white rounded-md hover:opacity-90 transition-opacity"
+          >
             <Eye className="h-4 w-4" />
             Dar Seguimiento
           </button>

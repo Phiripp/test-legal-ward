@@ -57,6 +57,10 @@ class DescubrimientoListSchema(Schema):
     cantidad_impactos: int
     documento_nombre: str
     documento_id: int
+    estado: str
+    proyecto_etapa: int | None = None
+    proyecto_fecha: str | None = None
+    proyecto_camara_origen: str | None = None
 
 
 class DescubrimientoDetailSchema(Schema):
@@ -67,5 +71,6 @@ class DescubrimientoDetailSchema(Schema):
     proyecto_titulo: str
     descripcion_impacto_consolidada: str | None
     fecha_analisis: datetime
+    estado: str
     documento: DocumentoListSchema
     impactos: list[ImpactoDescubiertoSchema]

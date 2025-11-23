@@ -64,6 +64,10 @@ export interface DescubrimientoList {
   cantidad_impactos: number;
   documento_nombre: string;
   documento_id: number;
+  estado: string;
+  proyecto_etapa?: number | null;
+  proyecto_fecha?: string | null;
+  proyecto_camara_origen?: string | null;
 }
 
 export interface DescubrimientoDetail {
@@ -72,6 +76,7 @@ export interface DescubrimientoDetail {
   proyecto_titulo: string;
   descripcion_impacto_consolidada: string | null;
   fecha_analisis: string;
+  estado: string;
   documento: DocumentoList;
   impactos: ImpactoDescubierto[];
 }
@@ -183,6 +188,61 @@ export async function getDiscoveryDetail(
   if (!response.ok) {
     const error = await response.text();
     throw new Error(`Error al obtener detalles del descubrimiento: ${error}`);
+  }
+
+  return response.json();
+}
+
+export async function trackDiscovery(
+  discoveryId: number
+): Promise<{ success: boolean; message: string; estado: string }> {
+  const response = await fetch(
+    getApiUrl(`/api/conflict-detector/discoveries/${discoveryId}/track`),
+    {
+      method: 'POST',
+      credentials: 'include',
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Error al dar seguimiento al descubrimiento: ${error}`);
+  }
+
+  return response.json();
+}
+
+export async function discardDiscovery(
+  discoveryId: number
+): Promise<{ success: boolean; message: string; estado: string }> {
+  const response = await fetch(
+    getApiUrl(`/api/conflict-detector/discoveries/${discoveryId}/discard`),
+    {
+      method: 'POST',
+      credentials: 'include',
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Error al descartar descubrimiento: ${error}`);
+  }
+
+  return response.json();
+}
+
+export async function listTrackingDiscoveries(): Promise<DescubrimientoList[]> {
+  const response = await fetch(
+    getApiUrl('/api/conflict-detector/discoveries/tracking'),
+    {
+      method: 'GET',
+      credentials: 'include',
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Error al listar descubrimientos en seguimiento: ${error}`);
   }
 
   return response.json();
