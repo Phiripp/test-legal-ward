@@ -25,7 +25,7 @@ from .state import ConflictDetectorState
 logger = logging.getLogger(__name__)
 
 # Variables globales de configuración
-SIMILITUD_THRESHOLD = 0.325
+SIMILITUD_THRESHOLD = 0.30
 MAX_ARTICULOS_POR_PAGINA = 10
 EMBEDDING_MODEL = "text-embedding-3-small"
 
