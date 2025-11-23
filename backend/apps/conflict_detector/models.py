@@ -1,6 +1,7 @@
 """Models for conflict_detector app."""
 
 from django.db import models
+from pgvector.django import VectorField
 
 
 class Documento(models.Model):
@@ -77,3 +78,39 @@ class ImpactoDescubierto(models.Model):
 
     def __str__(self) -> str:
         return f"Impacto (relevancia: {self.nivel_relevancia})"
+
+
+class EmbeddingCache(models.Model):
+    """Cache de embeddings para evitar llamadas redundantes a la API de OpenAI."""
+
+    text_hash = models.CharField(
+        max_length=64,
+        unique=True,
+        db_index=True,
+        help_text="Hash SHA256 del texto original",
+    )
+    embedding = VectorField(
+        dimensions=1536,
+        help_text="Vector de embedding generado por OpenAI",
+    )
+    model_name = models.CharField(
+        max_length=100,
+        default="text-embedding-3-small",
+        help_text="Nombre del modelo de embedding utilizado",
+    )
+    dimension = models.IntegerField(
+        default=1536,
+        help_text="Dimensión del vector de embedding",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "conflict_detector_embedding_cache"
+        verbose_name = "Embedding Cache"
+        verbose_name_plural = "Embedding Caches"
+        indexes = [
+            models.Index(fields=["text_hash", "model_name"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"Embedding {self.text_hash[:8]}... ({self.model_name})"

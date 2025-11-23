@@ -1,5 +1,6 @@
 """Nodos del grafo del agente de detección de conflictos."""
 
+import hashlib
 import logging
 import time
 
@@ -51,7 +52,7 @@ def similitud_coseno(vec1: np.ndarray, vec2: np.ndarray) -> float:
 
 def generar_embeddings(textos: list[str], batch_size: int = 100) -> list[list[float]]:
     """
-    Genera embeddings usando la API de OpenAI.
+    Genera embeddings usando la API de OpenAI con caché para evitar llamadas redundantes.
 
     Args:
         textos: Lista de textos a convertir en embeddings
@@ -60,8 +61,7 @@ def generar_embeddings(textos: list[str], batch_size: int = 100) -> list[list[fl
     Returns:
         Lista de vectores de embeddings
     """
-    client = get_openai_client()
-    embeddings = []
+    from apps.conflict_detector.models import EmbeddingCache
 
     # Filtrar y validar textos antes de procesar
     textos_validos = []
@@ -77,25 +77,108 @@ def generar_embeddings(textos: list[str], batch_size: int = 100) -> list[list[fl
             textos_validos.append(" ")
             indices_validos.append(idx)
 
-    # Procesar en lotes para manejar rate limits
-    for i in range(0, len(textos_validos), batch_size):
-        batch = textos_validos[i : i + batch_size]
+    # Calcular hashes para todos los textos
+    text_hashes = [
+        hashlib.sha256(texto.encode("utf-8")).hexdigest() for texto in textos_validos
+    ]
 
-        try:
-            response = client.embeddings.create(
-                model=EMBEDDING_MODEL,
-                input=batch,
+    # Buscar embeddings en caché
+    logger.info(
+        f"Buscando {len(text_hashes)} hashes en caché (modelo: {EMBEDDING_MODEL})"
+    )
+    cached_embeddings = EmbeddingCache.objects.filter(
+        text_hash__in=text_hashes, model_name=EMBEDDING_MODEL
+    ).in_bulk(field_name="text_hash")
+    logger.info(f"Encontrados {len(cached_embeddings)} embeddings en caché")
+
+    # Identificar textos que necesitan generar embeddings
+    textos_to_generate = []
+    indices_to_generate = []
+    hash_to_index = {}
+
+    cache_hits = 0
+    cache_misses = 0
+    for idx, (texto, text_hash) in enumerate(zip(textos_validos, text_hashes)):
+        if text_hash in cached_embeddings:
+            # Ya está en caché
+            cache_hits += 1
+            hash_to_index[text_hash] = idx
+        else:
+            # Necesita generar embedding
+            cache_misses += 1
+            textos_to_generate.append(texto)
+            indices_to_generate.append(idx)
+            hash_to_index[text_hash] = idx
+
+    logger.info(f"Cache hits: {cache_hits}, Cache misses: {cache_misses}")
+
+    # Generar embeddings para textos no cacheados
+    nuevos_embeddings = {}
+    if textos_to_generate:
+        logger.info(
+            f"Generando {len(textos_to_generate)} embeddings nuevos "
+            f"({len(cached_embeddings)} encontrados en caché)"
+        )
+
+        client = get_openai_client()
+        nuevos_embeddings_list = []
+
+        # Procesar en lotes para manejar rate limits
+        for i in range(0, len(textos_to_generate), batch_size):
+            batch = textos_to_generate[i : i + batch_size]
+
+            try:
+                response = client.embeddings.create(
+                    model=EMBEDDING_MODEL,
+                    input=batch,
+                )
+
+                batch_embeddings = [item.embedding for item in response.data]
+                nuevos_embeddings_list.extend(batch_embeddings)
+
+                # Pequeña pausa para evitar rate limits
+                time.sleep(0.1)
+
+            except Exception as e:
+                logger.error(f"Error al procesar lote {i // batch_size + 1}: {e}")
+                raise
+
+        # Guardar nuevos embeddings en caché
+        embeddings_to_cache = []
+        for idx, texto in enumerate(textos_to_generate):
+            text_hash = hashlib.sha256(texto.encode("utf-8")).hexdigest()
+            embedding = nuevos_embeddings_list[idx]
+
+            embeddings_to_cache.append(
+                EmbeddingCache(
+                    text_hash=text_hash,
+                    embedding=embedding,
+                    model_name=EMBEDDING_MODEL,
+                    dimension=len(embedding),
+                )
             )
+            nuevos_embeddings[text_hash] = embedding
 
-            batch_embeddings = [item.embedding for item in response.data]
-            embeddings.extend(batch_embeddings)
+        # Bulk insert de nuevos embeddings
+        if embeddings_to_cache:
+            EmbeddingCache.objects.bulk_create(
+                embeddings_to_cache, ignore_conflicts=True
+            )
+            logger.info(f"Guardados {len(embeddings_to_cache)} embeddings en caché")
+    else:
+        logger.info(
+            f"Todos los embeddings ({len(cached_embeddings)}) encontrados en caché"
+        )
 
-            # Pequeña pausa para evitar rate limits
-            time.sleep(0.1)
-
-        except Exception as e:
-            logger.error(f"Error al procesar lote {i // batch_size + 1}: {e}")
-            raise
+    # Reconstruir lista de embeddings en el orden original
+    embeddings = []
+    for text_hash in text_hashes:
+        if text_hash in cached_embeddings:
+            # Obtener de caché
+            embeddings.append(list(cached_embeddings[text_hash].embedding))
+        else:
+            # Obtener de nuevos embeddings
+            embeddings.append(nuevos_embeddings[text_hash])
 
     return embeddings
 
@@ -404,6 +487,8 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
                     f"{impactos_relevantes} relevantes (>50)"
                 )
 
-    logger.info(f"Procesamiento completado: {len(proyectos_ley_impacto or [])} proyectos con impacto")
+    logger.info(
+        f"Procesamiento completado: {len(proyectos_ley_impacto or [])} proyectos con impacto"
+    )
     state.proyecto_ley_impacto = proyectos_ley_impacto
     return state
