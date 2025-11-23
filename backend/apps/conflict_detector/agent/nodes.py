@@ -1,5 +1,6 @@
 """Nodos del grafo del agente de detección de conflictos."""
 
+import logging
 import time
 
 import numpy as np
@@ -16,6 +17,8 @@ from .models import (
 from .prompts import CONSOLIDACION_DESCRIPCIONES, MAP_EXTRACCION_MATRICES
 from .state import ConflictDetectorState
 
+logger = logging.getLogger(__name__)
+
 # Variables globales de configuración
 SIMILITUD_THRESHOLD = 0.4
 MAX_ARTICULOS_POR_PAGINA = 10
@@ -27,7 +30,6 @@ _client = None
 
 def get_openai_client() -> OpenAI:
     """Obtiene o crea el cliente de OpenAI."""
-    print("settings.PROJECT_OPENAI_API_KEY: ", settings.PROJECT_OPENAI_API_KEY)
     global _client
     _client = OpenAI(api_key=settings.PROJECT_OPENAI_API_KEY)
     return _client
@@ -92,7 +94,7 @@ def generar_embeddings(textos: list[str], batch_size: int = 100) -> list[list[fl
             time.sleep(0.1)
 
         except Exception as e:
-            print(f"Error al procesar lote {i // batch_size + 1}: {e}")
+            logger.error(f"Error al procesar lote {i // batch_size + 1}: {e}")
             raise
 
     return embeddings
@@ -139,7 +141,7 @@ def load_proyectos_ley() -> list[ProyectoLey]:
         )
         proyectos.append(proyecto)
 
-    print(f"Cargados {len(proyectos)} proyectos de ley desde la base de datos")
+    logger.info(f"Cargados {len(proyectos)} proyectos de ley desde la base de datos")
     return proyectos
 
 
@@ -170,16 +172,15 @@ def detectar_conflictos(
             indices_paginas_validas.append(idx)
 
     if not paginas_validas:
-        print("No hay páginas válidas para procesar")
+        logger.warning("No hay páginas válidas para procesar")
         return []
 
     # Generar embeddings para páginas válidas
-    print(
-        f"Generando embeddings para {len(paginas_validas)} páginas válidas (de {len(document_pages)} totales)..."
+    logger.info(
+        f"Generando embeddings para {len(paginas_validas)} páginas válidas (de {len(document_pages)} totales)"
     )
     embeddings_paginas = generar_embeddings(paginas_validas)
     embeddings_paginas_np = np.array(embeddings_paginas)
-    print("embeddings_paginas_np: ", embeddings_paginas_np)
 
     # Generar embeddings para artículos (filtrar artículos con descripcion_semantica vacía)
     articulos_validos = []
@@ -191,13 +192,12 @@ def detectar_conflictos(
         articulos_validos.append(item)
 
     if not textos_articulos:
-        print("No hay artículos válidos para procesar")
+        logger.warning("No hay artículos válidos para procesar")
         return []
 
-    print(f"Generando embeddings para {len(textos_articulos)} artículos...")
+    logger.info(f"Generando embeddings para {len(textos_articulos)} artículos")
     embeddings_articulos = generar_embeddings(textos_articulos)
     embeddings_articulos_np = np.array(embeddings_articulos)
-    print("embeddings_articulos_np: ", embeddings_articulos_np)
     # Comparar cada página válida con cada artículo
     conflictos = []
 
@@ -212,15 +212,6 @@ def detectar_conflictos(
             similitud = similitud_coseno(embedding_pagina, embedding_articulo)
             if similitud >= SIMILITUD_THRESHOLD:
                 similitudes_articulos.append(
-                    {
-                        "proyecto_id": item["proyecto_id"],
-                        "proyecto_titulo": item["proyecto_titulo"],
-                        "articulo": item["articulo"],
-                        "similitud": similitud,
-                    }
-                )
-            else:
-                print(
                     {
                         "proyecto_id": item["proyecto_id"],
                         "proyecto_titulo": item["proyecto_titulo"],
@@ -246,7 +237,7 @@ def detectar_conflictos(
             )
             conflictos.append(conflicto)
 
-    print("conflictos: ", conflictos)
+    logger.info(f"Detectados {len(conflictos)} conflictos potenciales")
     return conflictos
 
 
@@ -294,11 +285,11 @@ def consolidate_descriptions(descriptions: list[str]) -> str:
         )
 
         consolidated = response.choices[0].message.content.strip()
-        print(f"✅ Consolidadas {len(descriptions)} descripciones de impacto")
+        logger.info(f"Consolidadas {len(descriptions)} descripciones de impacto")
         return consolidated
 
     except Exception as e:
-        print(f"❌ Error al consolidar descripciones: {e}")
+        logger.error(f"Error al consolidar descripciones: {e}")
         # Fallback: concatenar descripciones con separadores
         return "\n\n---\n\n".join(
             f"**Impacto {i + 1}**\n\n{desc}" for i, desc in enumerate(descriptions)
@@ -331,7 +322,7 @@ def calcular_impacto_conflictos(conflictos: list[ConflictoDetectado]):
         concurrency_limit=16,
     )
 
-    print(f"✅ Impacto calculado para {len(result.map_results)} conflictos")
+    logger.info(f"Impacto calculado para {len(result.map_results)} conflictos")
 
     return result
 
@@ -343,11 +334,11 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
     Detecta conflictos comparando cada página con cada artículo.
     """
     document_pages = state.document_pages
-    print("document_pages: ", document_pages)
+    logger.info(f"Procesando documento con {len(document_pages)} páginas")
 
     # Cargar proyectos de ley
     proyectos_ley = load_proyectos_ley()
-    print("proyectos_ley: ", proyectos_ley)
+
     # Extraer artículos distintos
     articulos_con_proyecto = []
     for proyecto in proyectos_ley:
@@ -359,19 +350,17 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
                     "articulo": articulo,
                 }
             )
-    print("articulos_con_proyecto: ", articulos_con_proyecto)
+
+    logger.info(f"Total de artículos a comparar: {len(articulos_con_proyecto)}")
+
     # Detectar conflictos
     conflictos = detectar_conflictos(document_pages, articulos_con_proyecto)
 
     # Calcular impacto de los conflictos usando LLM
-    print("conflictos: ", conflictos)
     conflictos_impacto = calcular_impacto_conflictos(conflictos)
-    print("conflictos_impacto: ", conflictos_impacto)
 
     # Combinar conflictos originales con impactos calculados y agrupar por proyecto
     proyecto_ley_impacto = None
-    print("conflictos: ", conflictos)
-    print("conflictos_impacto.map_results: ", conflictos_impacto.map_results)
 
     if conflictos and conflictos_impacto.map_results:
         # Crear un diccionario para agrupar impactos por proyecto
@@ -379,9 +368,6 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
 
         # Combinar cada conflicto con su impacto correspondiente
         for conflicto, impacto in zip(conflictos, conflictos_impacto.map_results):
-            print("conflicto.proyecto_id: ", conflicto.proyecto_id)
-            print("conflicto.proyecto_titulo: ", conflicto.proyecto_titulo)
-            print("impacto: ", impacto)
             proyecto_id = conflicto.proyecto_id
             proyecto_titulo = conflicto.proyecto_titulo
 
@@ -394,17 +380,17 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
 
             proyectos_impacto[proyecto_id]["impactos"].append(impacto)
 
-        # Si hay al menos un proyecto, usar el primero (o podríamos retornar una lista)
-        print("proyectos_impacto: ", proyectos_impacto)
+        # Construir lista de ProyectoLeyImpacto
         proyectos_ley_impacto = []
         if proyectos_impacto:
             for proyecto_id, proyecto in proyectos_impacto.items():
                 all_descriptions = []
+                impactos_relevantes = 0
                 for impacto in proyecto["impactos"]:
                     if impacto.nivel_relevancia > 50:
                         all_descriptions.append(impacto.descripcion_impacto)
-                    else:
-                        print("impacto.nivel_relevancia: ", impacto.nivel_relevancia)
+                        impactos_relevantes += 1
+
                 description = consolidate_descriptions(all_descriptions)
                 proyecto_ley_impacto = ProyectoLeyImpacto(
                     proyecto_id=proyecto["proyecto_id"],
@@ -413,13 +399,11 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
                     descripcion_impacto_consolidada=description,
                 )
                 proyectos_ley_impacto.append(proyecto_ley_impacto)
-                print("description: ", description)
+                logger.info(
+                    f"Proyecto {proyecto_id}: {len(proyecto['impactos'])} impactos totales, "
+                    f"{impactos_relevantes} relevantes (>50)"
+                )
 
-    # Actualizar el estado
-    # state.proyectos_ley = proyectos_ley
-    # state.conflictos = conflictos
+    logger.info(f"Procesamiento completado: {len(proyectos_ley_impacto or [])} proyectos con impacto")
     state.proyecto_ley_impacto = proyectos_ley_impacto
-    # state.descripcion_impacto_consolidada = description
-
-    print("state: ", state)
     return state
