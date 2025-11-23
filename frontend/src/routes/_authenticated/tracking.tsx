@@ -69,10 +69,16 @@ function Tracking() {
   };
 
   const getTimelineFromEtapa = (etapa: number | null | undefined, proyectoFecha: string | null | undefined) => {
-    const fechaIngreso = proyectoFecha ? formatDate(proyectoFecha) : null;
-    
-    // Determinar el estado de cada etapa basado en la etapa actual
     const etapaActual = etapa || 1;
+    
+    // Helper para agregar días a una fecha y formatearla
+    const addDaysAndFormat = (dateString: string, days: number): string => {
+      const date = new Date(dateString);
+      date.setDate(date.getDate() + days);
+      return formatDate(date.toISOString());
+    };
+    
+    const fechaIngreso = proyectoFecha ? formatDate(proyectoFecha) : null;
     
     const timeline = [
       { 
@@ -83,17 +89,17 @@ function Tracking() {
       { 
         stage: "Primera Cámara", 
         status: etapaActual >= 2 ? (etapaActual === 2 ? "in-progress" : "completed") : "pending", 
-        date: etapaActual >= 2 ? fechaIngreso : null 
+        date: etapaActual >= 2 && proyectoFecha ? addDaysAndFormat(proyectoFecha, 45) : null 
       },
       { 
         stage: "Segunda Cámara", 
         status: etapaActual >= 3 ? (etapaActual === 3 ? "in-progress" : "completed") : "pending", 
-        date: etapaActual >= 3 ? fechaIngreso : null 
+        date: etapaActual >= 3 && proyectoFecha ? addDaysAndFormat(proyectoFecha, 120) : null 
       },
       { 
         stage: "Promulgación", 
         status: etapaActual >= 4 ? (etapaActual === 4 ? "in-progress" : "completed") : "pending", 
-        date: etapaActual >= 4 ? fechaIngreso : null 
+        date: etapaActual >= 4 && proyectoFecha ? addDaysAndFormat(proyectoFecha, 180) : null 
       },
     ];
 
