@@ -211,6 +211,7 @@ function Dashboard() {
                     key={item.id}
                     to="/discoveries/$id"
                     params={{ id: String(item.id) }}
+                    search={{ from: undefined }}
                     className="block"
                   >
                     <div className="flex items-start justify-between border-b border-border pb-4 last:border-0 last:pb-0 hover:bg-[hsl(var(--muted))]/30 -mx-2 px-2 py-2 rounded transition-colors">

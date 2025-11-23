@@ -127,7 +127,6 @@ function Tracking() {
           {discoveries.map((discovery) => {
             const impactLevel = getImpactLevel(discovery.cantidad_impactos);
             const timeline = getTimelineFromEtapa(discovery.proyecto_etapa, discovery.proyecto_fecha || undefined);
-            const category = discovery.proyecto_camara_origen || "Legal / Compliance";
             
             return (
               <div key={discovery.id} className="bg-card rounded-lg border border-[hsl(var(--border))] hover:shadow-md transition-shadow">
