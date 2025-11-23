@@ -65,3 +65,13 @@ export function getRecentlyViewedDiscoveries(): RecentlyViewedDiscovery[] {
     return [];
   }
 }
+
+export function removeRecentlyViewedDiscovery(discoveryId: number): void {
+  try {
+    const existing = getRecentlyViewedDiscoveries();
+    const filtered = existing.filter(item => item.id !== discoveryId);
+    localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(filtered));
+  } catch (error) {
+    console.error('Error al eliminar proyecto visto recientemente:', error);
+  }
+}

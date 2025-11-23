@@ -25,13 +25,68 @@ function Dashboard() {
 
   useEffect(() => {
     loadDashboardData();
+  }, []);
+
+  // Actualizar proyectos vistos recientemente cuando cambian los descubrimientos
+  useEffect(() => {
+    const viewed = getRecentlyViewedDiscoveries();
     
+    // Crear un mapa con la información más reciente de descubrimientos activos y en seguimiento
+    const discoveriesMap = new Map<number, DescubrimientoList>();
+    [...activeDiscoveries, ...trackingDiscoveries].forEach(d => {
+      discoveriesMap.set(d.id, d);
+    });
+    
+    // Filtrar y actualizar solo los que están presentes en descubrimientos activos o seguimiento
+    // Actualizar la información con los datos más recientes
+    const sorted = viewed
+      .filter(item => discoveriesMap.has(item.id))
+      .map(item => {
+        const currentDiscovery = discoveriesMap.get(item.id)!;
+        // Actualizar con información más reciente, pero mantener viewedAt
+        return {
+          ...item,
+          max_nivel_relevancia: currentDiscovery.max_nivel_relevancia,
+          cantidad_impactos: currentDiscovery.cantidad_impactos,
+          estado: currentDiscovery.estado,
+        };
+      })
+      .sort((a, b) => {
+        return new Date(b.viewedAt).getTime() - new Date(a.viewedAt).getTime();
+      });
+    
+    setRecentlyViewed(sorted);
+  }, [activeDiscoveries, trackingDiscoveries]);
+
+  useEffect(() => {
     // Función para actualizar proyectos vistos recientemente
     const updateRecentlyViewed = () => {
       const viewed = getRecentlyViewedDiscoveries();
-      const sorted = viewed.sort((a, b) => {
-        return new Date(b.viewedAt).getTime() - new Date(a.viewedAt).getTime();
+      
+      // Crear un mapa con la información más reciente de descubrimientos activos y en seguimiento
+      const discoveriesMap = new Map<number, DescubrimientoList>();
+      [...activeDiscoveries, ...trackingDiscoveries].forEach(d => {
+        discoveriesMap.set(d.id, d);
       });
+      
+      // Filtrar y actualizar solo los que están presentes en descubrimientos activos o seguimiento
+      // Actualizar la información con los datos más recientes
+      const sorted = viewed
+        .filter(item => discoveriesMap.has(item.id))
+        .map(item => {
+          const currentDiscovery = discoveriesMap.get(item.id)!;
+          // Actualizar con información más reciente, pero mantener viewedAt
+          return {
+            ...item,
+            max_nivel_relevancia: currentDiscovery.max_nivel_relevancia,
+            cantidad_impactos: currentDiscovery.cantidad_impactos,
+            estado: currentDiscovery.estado,
+          };
+        })
+        .sort((a, b) => {
+          return new Date(b.viewedAt).getTime() - new Date(a.viewedAt).getTime();
+        });
+      
       setRecentlyViewed(sorted);
     };
     
@@ -54,7 +109,7 @@ function Dashboard() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
-  }, []);
+  }, [activeDiscoveries, trackingDiscoveries]);
 
   const loadDashboardData = async () => {
     try {
@@ -69,13 +124,9 @@ function Dashboard() {
       setActiveDiscoveries(discoveries);
       setTrackingDiscoveries(tracking);
 
-      // Cargar proyectos vistos recientemente desde localStorage
-      const viewed = getRecentlyViewedDiscoveries();
-      // Ordenar por fecha de visualización (más recientes primero)
-      const sorted = viewed.sort((a, b) => {
-        return new Date(b.viewedAt).getTime() - new Date(a.viewedAt).getTime();
-      });
-      setRecentlyViewed(sorted);
+      // Los proyectos vistos recientemente se actualizarán automáticamente
+      // cuando se actualicen activeDiscoveries y trackingDiscoveries
+      // a través del useEffect que depende de ellos
     } catch (error) {
       console.error('Error al cargar datos del dashboard:', error);
     } finally {
