@@ -16,8 +16,8 @@ from .models import (
     ProyectoLeyImpacto,
 )
 from .prompts import (
-    CONSOLIDACION_BAJA_RELEVANCIA,
-    CONSOLIDACION_DESCRIPCIONES,
+    MAP_CONSOLIDACION_BAJA_RELEVANCIA,
+    MAP_CONSOLIDACION_DESCRIPCIONES,
     MAP_EXTRACCION_MATRICES,
 )
 from .state import ConflictDetectorState
@@ -25,7 +25,7 @@ from .state import ConflictDetectorState
 logger = logging.getLogger(__name__)
 
 # Variables globales de configuración
-SIMILITUD_THRESHOLD = 0.375
+SIMILITUD_THRESHOLD = 0.325
 MAX_ARTICULOS_POR_PAGINA = 10
 EMBEDDING_MODEL = "text-embedding-3-small"
 
@@ -325,110 +325,125 @@ def detectar_conflictos(
     return conflictos
 
 
-def consolidate_descriptions(descriptions: list[str]) -> str:
+def _format_descriptions_for_consolidation(descriptions: list[str]) -> str:
     """
-    Consolida múltiples descripciones de impacto en un análisis único y coherente.
+    Formatea una lista de descripciones para consolidación.
 
     Args:
-        descriptions: Lista de descripciones de impacto a consolidar
+        descriptions: Lista de descripciones de impacto
 
     Returns:
-        Descripción consolidada como string
+        String formateado con descripciones numeradas
     """
-    if not descriptions:
-        return ""
-
-    if len(descriptions) == 1:
-        return descriptions[0]
-
-    # Formatear descripciones numeradas para el prompt
-    formatted_descriptions = "\n\n".join(
+    return "\n\n".join(
         f"## Impacto {i + 1}\n{desc}" for i, desc in enumerate(descriptions)
     )
 
-    # Preparar el prompt con las descripciones
-    prompt_content = CONSOLIDACION_DESCRIPCIONES.format(
-        descriptions=formatted_descriptions
-    )
 
-    # Llamar al LLM para consolidar
-    client = get_openai_client()
-
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Eres un abogado senior especializado en análisis regulatorio corporativo.",
-                },
-                {"role": "user", "content": prompt_content},
-            ],
-            temperature=0.3,
-            max_tokens=2000,
-        )
-
-        consolidated = response.choices[0].message.content.strip()
-        logger.info(f"Consolidadas {len(descriptions)} descripciones de impacto")
-        return consolidated
-
-    except Exception as e:
-        logger.error(f"Error al consolidar descripciones: {e}")
-        # Fallback: concatenar descripciones con separadores
-        return "\n\n---\n\n".join(
-            f"**Impacto {i + 1}**\n\n{desc}" for i, desc in enumerate(descriptions)
-        )
-
-
-def consolidate_low_relevance(descriptions: list[str]) -> str:
+def consolidate_descriptions_batch(
+    descriptions_list: list[list[str]],
+) -> list[str]:
     """
-    Genera un resumen explicando por qué los impactos son de baja relevancia.
+    Consolida múltiples listas de descripciones en paralelo usando llm_map.
 
     Args:
-        descriptions: Lista de descripciones de impacto de baja relevancia
+        descriptions_list: Lista de listas de descripciones a consolidar
 
     Returns:
-        Resumen explicando por qué no son significativos
+        Lista de descripciones consolidadas
     """
-    if not descriptions:
-        return ""
+    if not descriptions_list:
+        return []
 
-    # Formatear descripciones numeradas para el prompt
-    formatted_descriptions = "\n\n".join(
-        f"## Impacto {i + 1}\n{desc}" for i, desc in enumerate(descriptions)
+    # Preparar textos para procesar
+    texts_to_process: list[str] = []
+    indices_to_process: list[int] = []
+    results: list[str] = [""] * len(descriptions_list)
+
+    for idx, descriptions in enumerate(descriptions_list):
+        if not descriptions:
+            results[idx] = ""
+        elif len(descriptions) == 1:
+            results[idx] = descriptions[0]
+        else:
+            formatted = _format_descriptions_for_consolidation(descriptions)
+            texts_to_process.append(formatted)
+            indices_to_process.append(idx)
+
+    if not texts_to_process:
+        return results
+
+    # Usar llm_map para procesar en paralelo
+    logger.info(
+        f"Consolidando {len(texts_to_process)} grupos de descripciones en paralelo"
+    )
+    result = llm_map(
+        texts=texts_to_process,
+        map_prompt=MAP_CONSOLIDACION_DESCRIPCIONES,
+        map_output_parser=None,  # String output
+        llm_temperature=0.3,
+        concurrency_limit=32,
     )
 
-    # Preparar el prompt con las descripciones
-    prompt_content = CONSOLIDACION_BAJA_RELEVANCIA.format(
-        descriptions=formatted_descriptions
+    # Mapear resultados
+    for i, idx in enumerate(indices_to_process):
+        results[idx] = str(result.map_results[i])
+
+    logger.info(f"Consolidación completada para {len(texts_to_process)} grupos")
+    return results
+
+
+def consolidate_low_relevance_batch(
+    descriptions_list: list[list[str]],
+) -> list[str]:
+    """
+    Genera resúmenes de baja relevancia para múltiples listas en paralelo.
+
+    Args:
+        descriptions_list: Lista de listas de descripciones de baja relevancia
+
+    Returns:
+        Lista de resúmenes explicando por qué no son significativos
+    """
+    if not descriptions_list:
+        return []
+
+    # Preparar textos para procesar
+    texts_to_process: list[str] = []
+    indices_to_process: list[int] = []
+    results: list[str] = [""] * len(descriptions_list)
+
+    for idx, descriptions in enumerate(descriptions_list):
+        if not descriptions:
+            results[idx] = ""
+        else:
+            formatted = _format_descriptions_for_consolidation(descriptions)
+            texts_to_process.append(formatted)
+            indices_to_process.append(idx)
+
+    if not texts_to_process:
+        return results
+
+    # Usar llm_map para procesar en paralelo
+    logger.info(
+        f"Generando {len(texts_to_process)} resúmenes de baja relevancia en paralelo"
+    )
+    result = llm_map(
+        texts=texts_to_process,
+        map_prompt=MAP_CONSOLIDACION_BAJA_RELEVANCIA,
+        map_output_parser=None,  # String output
+        llm_temperature=0.3,
+        concurrency_limit=32,
     )
 
-    # Llamar al LLM para generar resumen
-    client = get_openai_client()
+    # Mapear resultados
+    for i, idx in enumerate(indices_to_process):
+        results[idx] = str(result.map_results[i])
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Eres un abogado corporativo que explica análisis regulatorio.",
-                },
-                {"role": "user", "content": prompt_content},
-            ],
-            temperature=0.3,
-            max_tokens=1000,
-        )
-
-        consolidated = response.choices[0].message.content.strip()
-        logger.info(
-            f"Generado resumen de baja relevancia para {len(descriptions)} impactos"
-        )
-        return consolidated
-
-    except Exception as e:
-        logger.error(f"Error al generar resumen de baja relevancia: {e}")
-        return "Los impactos identificados tienen baja relevancia y no requieren acción inmediata."
+    logger.info(
+        f"Resúmenes de baja relevancia completados para {len(texts_to_process)} grupos"
+    )
+    return results
 
 
 def calcular_impacto_conflictos(conflictos: list[ConflictoDetectado]):
@@ -495,7 +510,7 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
     conflictos_impacto = calcular_impacto_conflictos(conflictos)
 
     # Combinar conflictos originales con impactos calculados y agrupar por proyecto
-    proyecto_ley_impacto = None
+    proyectos_ley_impacto = []
 
     if conflictos and conflictos_impacto.map_results:
         # Crear un diccionario para agrupar impactos por proyecto
@@ -539,16 +554,23 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
                 f"Total de impactos descartados por baja relevancia: {impactos_sin_relacion_count}"
             )
 
-        # Construir lista de ProyectoLeyImpacto
+        # Construir lista de ProyectoLeyImpacto con consolidación paralela
         proyectos_ley_impacto = []
         if proyectos_impacto:
-            for proyecto_id, proyecto in proyectos_impacto.items():
+            # Fase 1: Recopilar descripciones por proyecto
+            proyecto_ids = list(proyectos_impacto.keys())
+            high_relevance_by_project: list[list[str]] = []
+            low_relevance_by_project: list[list[str]] = []
+            max_relevancia_by_project: list[int] = []
+            use_high_relevance: list[bool] = []
+
+            for proyecto_id in proyecto_ids:
+                proyecto = proyectos_impacto[proyecto_id]
                 high_relevance_descriptions = []
                 low_relevance_descriptions = []
                 max_nivel_relevancia = 0
 
                 for impacto in proyecto["impactos"]:
-                    # Calcular el máximo nivel de relevancia
                     if impacto.nivel_relevancia > max_nivel_relevancia:
                         max_nivel_relevancia = impacto.nivel_relevancia
 
@@ -557,31 +579,62 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
                     else:
                         low_relevance_descriptions.append(impacto.descripcion_impacto)
 
-                # Generar descripción consolidada según el tipo de impactos
-                if high_relevance_descriptions:
-                    # Hay impactos significativos: usar prompt normal
-                    description = consolidate_descriptions(high_relevance_descriptions)
-                else:
-                    # Solo impactos de baja relevancia: explicar por qué no son significativos
-                    description = consolidate_low_relevance(low_relevance_descriptions)
+                high_relevance_by_project.append(high_relevance_descriptions)
+                low_relevance_by_project.append(low_relevance_descriptions)
+                max_relevancia_by_project.append(max_nivel_relevancia)
+                use_high_relevance.append(len(high_relevance_descriptions) > 0)
 
-                proyecto_ley_impacto = ProyectoLeyImpacto(
+            # Fase 2: Consolidar en paralelo (separar high y low relevance)
+            high_to_consolidate = [
+                descs
+                for descs, use_high in zip(
+                    high_relevance_by_project, use_high_relevance
+                )
+                if use_high
+            ]
+            low_to_consolidate = [
+                descs
+                for descs, use_high in zip(low_relevance_by_project, use_high_relevance)
+                if not use_high
+            ]
+
+            # Ejecutar consolidaciones en paralelo
+            high_results = consolidate_descriptions_batch(high_to_consolidate)
+            low_results = consolidate_low_relevance_batch(low_to_consolidate)
+
+            # Fase 3: Reconstruir resultados en orden original
+            high_idx = 0
+            low_idx = 0
+            consolidated_descriptions: list[str] = []
+
+            for use_high in use_high_relevance:
+                if use_high:
+                    consolidated_descriptions.append(high_results[high_idx])
+                    high_idx += 1
+                else:
+                    consolidated_descriptions.append(low_results[low_idx])
+                    low_idx += 1
+
+            # Fase 4: Crear objetos ProyectoLeyImpacto
+            for i, proyecto_id in enumerate(proyecto_ids):
+                proyecto = proyectos_impacto[proyecto_id]
+                proyecto_ley_impacto_obj = ProyectoLeyImpacto(
                     proyecto_id=proyecto["proyecto_id"],
                     proyecto_titulo=proyecto["proyecto_titulo"],
                     impactos=proyecto["impactos"],
-                    max_nivel_relevancia=max_nivel_relevancia,
-                    descripcion_impacto_consolidada=description,
+                    max_nivel_relevancia=max_relevancia_by_project[i],
+                    descripcion_impacto_consolidada=consolidated_descriptions[i],
                 )
-                proyectos_ley_impacto.append(proyecto_ley_impacto)
+                proyectos_ley_impacto.append(proyecto_ley_impacto_obj)
                 logger.info(
                     f"Proyecto {proyecto_id}: {len(proyecto['impactos'])} impactos totales, "
-                    f"{len(high_relevance_descriptions)} relevantes (>50), "
-                    f"{len(low_relevance_descriptions)} baja relevancia, "
-                    f"max_relevancia={max_nivel_relevancia}"
+                    f"{len(high_relevance_by_project[i])} relevantes (>50), "
+                    f"{len(low_relevance_by_project[i])} baja relevancia, "
+                    f"max_relevancia={max_relevancia_by_project[i]}"
                 )
 
-        logger.info(
-            f"Procesamiento completado: {len(proyectos_ley_impacto or [])} proyectos con impacto"
-        )
+    logger.info(
+        f"Procesamiento completado: {len(proyectos_ley_impacto)} proyectos con impacto"
+    )
     state.proyecto_ley_impacto = proyectos_ley_impacto
     return state
