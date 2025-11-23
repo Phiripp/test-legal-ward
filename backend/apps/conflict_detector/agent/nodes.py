@@ -14,13 +14,17 @@ from .models import (
     ProyectoLey,
     ProyectoLeyImpacto,
 )
-from .prompts import CONSOLIDACION_DESCRIPCIONES, MAP_EXTRACCION_MATRICES
+from .prompts import (
+    CONSOLIDACION_BAJA_RELEVANCIA,
+    CONSOLIDACION_DESCRIPCIONES,
+    MAP_EXTRACCION_MATRICES,
+)
 from .state import ConflictDetectorState
 
 logger = logging.getLogger(__name__)
 
 # Variables globales de configuración
-SIMILITUD_THRESHOLD = 0.40
+SIMILITUD_THRESHOLD = 0.375
 MAX_ARTICULOS_POR_PAGINA = 10
 EMBEDDING_MODEL = "text-embedding-3-small"
 
@@ -293,6 +297,57 @@ def consolidate_descriptions(descriptions: list[str]) -> str:
         )
 
 
+def consolidate_low_relevance(descriptions: list[str]) -> str:
+    """
+    Genera un resumen explicando por qué los impactos son de baja relevancia.
+
+    Args:
+        descriptions: Lista de descripciones de impacto de baja relevancia
+
+    Returns:
+        Resumen explicando por qué no son significativos
+    """
+    if not descriptions:
+        return ""
+
+    # Formatear descripciones numeradas para el prompt
+    formatted_descriptions = "\n\n".join(
+        f"## Impacto {i + 1}\n{desc}" for i, desc in enumerate(descriptions)
+    )
+
+    # Preparar el prompt con las descripciones
+    prompt_content = CONSOLIDACION_BAJA_RELEVANCIA.format(
+        descriptions=formatted_descriptions
+    )
+
+    # Llamar al LLM para generar resumen
+    client = get_openai_client()
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Eres un abogado corporativo que explica análisis regulatorio.",
+                },
+                {"role": "user", "content": prompt_content},
+            ],
+            temperature=0.3,
+            max_tokens=1000,
+        )
+
+        consolidated = response.choices[0].message.content.strip()
+        logger.info(
+            f"Generado resumen de baja relevancia para {len(descriptions)} impactos"
+        )
+        return consolidated
+
+    except Exception as e:
+        logger.error(f"Error al generar resumen de baja relevancia: {e}")
+        return "Los impactos identificados tienen baja relevancia y no requieren acción inmediata."
+
+
 def calcular_impacto_conflictos(conflictos: list[ConflictoDetectado]):
     """
     Calcula el impacto de los conflictos detectados usando LLM con llm_map.
@@ -405,8 +460,8 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
         proyectos_ley_impacto = []
         if proyectos_impacto:
             for proyecto_id, proyecto in proyectos_impacto.items():
-                all_descriptions = []
-                impactos_relevantes = 0
+                high_relevance_descriptions = []
+                low_relevance_descriptions = []
                 max_nivel_relevancia = 0
 
                 for impacto in proyecto["impactos"]:
@@ -415,10 +470,18 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
                         max_nivel_relevancia = impacto.nivel_relevancia
 
                     if impacto.nivel_relevancia > 50:
-                        all_descriptions.append(impacto.descripcion_impacto)
-                        impactos_relevantes += 1
+                        high_relevance_descriptions.append(impacto.descripcion_impacto)
+                    else:
+                        low_relevance_descriptions.append(impacto.descripcion_impacto)
 
-                description = consolidate_descriptions(all_descriptions)
+                # Generar descripción consolidada según el tipo de impactos
+                if high_relevance_descriptions:
+                    # Hay impactos significativos: usar prompt normal
+                    description = consolidate_descriptions(high_relevance_descriptions)
+                else:
+                    # Solo impactos de baja relevancia: explicar por qué no son significativos
+                    description = consolidate_low_relevance(low_relevance_descriptions)
+
                 proyecto_ley_impacto = ProyectoLeyImpacto(
                     proyecto_id=proyecto["proyecto_id"],
                     proyecto_titulo=proyecto["proyecto_titulo"],
@@ -429,7 +492,9 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
                 proyectos_ley_impacto.append(proyecto_ley_impacto)
                 logger.info(
                     f"Proyecto {proyecto_id}: {len(proyecto['impactos'])} impactos totales, "
-                    f"{impactos_relevantes} relevantes (>50), max_relevancia={max_nivel_relevancia}"
+                    f"{len(high_relevance_descriptions)} relevantes (>50), "
+                    f"{len(low_relevance_descriptions)} baja relevancia, "
+                    f"max_relevancia={max_nivel_relevancia}"
                 )
 
     logger.info(

@@ -181,6 +181,21 @@ function ProjectDetail() {
         </div>
       </div>
 
+      {/* Análisis Consolidado de Impacto */}
+      {discovery.descripcion_impacto_consolidada && (
+        <div className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] p-6">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold mb-1">Análisis Consolidado de Impacto</h2>
+            <p className="text-sm text-[hsl(var(--muted-foreground))]">
+              Resumen general de cómo este proyecto afecta tu documento
+            </p>
+          </div>
+          <div className="markdown-content">
+            <ReactMarkdown>{discovery.descripcion_impacto_consolidada}</ReactMarkdown>
+          </div>
+        </div>
+      )}
+
       {/* Encabezados */}
       <div className="mb-4">
         <p className="text-sm text-[hsl(var(--muted-foreground))]">
@@ -245,21 +260,6 @@ function ProjectDetail() {
               Volver a ver los primeros {IMPACTOS_PER_PAGE}
             </button>
           )}
-        </div>
-      )}
-
-      {/* Análisis Consolidado de Impacto */}
-      {discovery.descripcion_impacto_consolidada && (
-        <div className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] p-6">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold mb-1">Análisis Consolidado de Impacto</h2>
-            <p className="text-sm text-[hsl(var(--muted-foreground))]">
-              Resumen general de cómo este proyecto afecta tu documento
-            </p>
-          </div>
-          <div className="markdown-content">
-            <ReactMarkdown>{discovery.descripcion_impacto_consolidada}</ReactMarkdown>
-          </div>
         </div>
       )}
 
