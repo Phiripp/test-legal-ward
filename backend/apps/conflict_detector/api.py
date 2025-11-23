@@ -137,6 +137,7 @@ def list_discoveries(request):
         DescubrimientoConflicto.objects.select_related("documento")
         .annotate(cantidad_impactos=Count("impactos"))
         .filter(estado=DescubrimientoConflicto.Estado.PENDING)
+        .order_by("-max_nivel_relevancia")
     )
 
     return [
@@ -147,6 +148,7 @@ def list_discoveries(request):
             "descripcion_impacto_consolidada": desc.descripcion_impacto_consolidada,
             "fecha_analisis": desc.fecha_analisis,
             "cantidad_impactos": desc.cantidad_impactos,
+            "max_nivel_relevancia": desc.max_nivel_relevancia,
             "documento_nombre": desc.documento.nombre,
             "documento_id": desc.documento.id,
             "estado": desc.estado,
@@ -227,6 +229,7 @@ def get_discovery_detail(request, descubrimiento_id: int):
         "descripcion_impacto_consolidada": descubrimiento.descripcion_impacto_consolidada,
         "fecha_analisis": descubrimiento.fecha_analisis,
         "estado": descubrimiento.estado,
+        "max_nivel_relevancia": descubrimiento.max_nivel_relevancia,
         "documento": {
             "id": descubrimiento.documento.id,
             "nombre": descubrimiento.documento.nombre,

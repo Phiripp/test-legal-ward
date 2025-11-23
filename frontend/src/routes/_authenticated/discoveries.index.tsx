@@ -1,14 +1,12 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Eye, X, AlertTriangle, Loader2, FileText } from "lucide-react";
 import { useState, useEffect } from "react";
 import { listDiscoveries, trackDiscovery, discardDiscovery, type DescubrimientoList } from "../../services/api/conflictDetector";
-
 export const Route = createFileRoute("/_authenticated/discoveries/")({
   component: Discoveries,
 });
 
 function Discoveries() {
-  const navigate = useNavigate();
   const [discoveries, setDiscoveries] = useState<DescubrimientoList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -28,9 +26,9 @@ function Discoveries() {
     }
   };
 
-  const getImpactLevel = (cantidadImpactos: number): string => {
-    if (cantidadImpactos >= 3) return "Alto";
-    if (cantidadImpactos >= 1) return "Medio";
+  const getImpactLevel = (maxRelevancia: number): string => {
+    if (maxRelevancia >= 50) return "Alto";
+    if (maxRelevancia >= 30) return "Medio";
     return "Bajo";
   };
 
@@ -103,7 +101,7 @@ function Discoveries() {
       ) : (
         <div className="grid gap-4">
           {discoveries.map((discovery) => {
-            const impactLevel = getImpactLevel(discovery.cantidad_impactos);
+            const impactLevel = getImpactLevel(discovery.max_nivel_relevancia);
             return (
               <div
                 key={discovery.id}
@@ -113,6 +111,7 @@ function Discoveries() {
                   <Link
                     to="/discoveries/$id"
                     params={{ id: String(discovery.id) }}
+                    search={{ from: undefined }}
                     className="flex items-start justify-between gap-4 block"
                   >
                     <div className="flex-1 space-y-2">

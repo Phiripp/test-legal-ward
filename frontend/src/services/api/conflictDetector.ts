@@ -62,6 +62,7 @@ export interface DescubrimientoList {
   descripcion_impacto_consolidada: string | null;
   fecha_analisis: string;
   cantidad_impactos: number;
+  max_nivel_relevancia: number;
   documento_nombre: string;
   documento_id: number;
   estado: string;
@@ -77,6 +78,7 @@ export interface DescubrimientoDetail {
   descripcion_impacto_consolidada: string | null;
   fecha_analisis: string;
   estado: string;
+  max_nivel_relevancia: number;
   documento: DocumentoList;
   impactos: ImpactoDescubierto[];
 }
