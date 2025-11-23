@@ -53,6 +53,7 @@ export interface DetectConflictsResponse {
     descripcion_impacto_consolidada: string;
     cantidad_impactos: number;
   }>;
+  pending_discoveries_count: number;
 }
 
 export interface DescubrimientoList {

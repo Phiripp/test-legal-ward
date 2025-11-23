@@ -2,6 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Eye, X, AlertTriangle, Loader2, FileText } from "lucide-react";
 import { useState, useEffect } from "react";
 import { listDiscoveries, trackDiscovery, discardDiscovery, type DescubrimientoList } from "../../services/api/conflictDetector";
+import { useDiscoveries } from "../../contexts/DiscoveriesContext";
+
 export const Route = createFileRoute("/_authenticated/discoveries/")({
   component: Discoveries,
 });
@@ -9,6 +11,7 @@ export const Route = createFileRoute("/_authenticated/discoveries/")({
 function Discoveries() {
   const [discoveries, setDiscoveries] = useState<DescubrimientoList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { refreshPendingCount } = useDiscoveries();
 
   useEffect(() => {
     loadDiscoveries();
@@ -57,8 +60,8 @@ function Discoveries() {
   const handleDiscard = async (discoveryId: number) => {
     try {
       await discardDiscovery(discoveryId);
-      // Recargar la lista de descubrimientos
-      await loadDiscoveries();
+      // Recargar la lista de descubrimientos y actualizar el contador
+      await Promise.all([loadDiscoveries(), refreshPendingCount()]);
     } catch (error) {
       console.error('Error al descartar descubrimiento:', error);
       alert('Error al descartar el descubrimiento. Por favor, intenta nuevamente.');
@@ -68,8 +71,8 @@ function Discoveries() {
   const handleTrack = async (discoveryId: number) => {
     try {
       await trackDiscovery(discoveryId);
-      // Recargar la lista de descubrimientos
-      await loadDiscoveries();
+      // Recargar la lista de descubrimientos y actualizar el contador
+      await Promise.all([loadDiscoveries(), refreshPendingCount()]);
     } catch (error) {
       console.error('Error al dar seguimiento:', error);
       alert('Error al dar seguimiento al descubrimiento. Por favor, intenta nuevamente.');
