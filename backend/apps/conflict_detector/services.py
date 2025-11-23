@@ -63,6 +63,7 @@ def guardar_descubrimientos(
             documento=documento,
             proyecto_id=proyecto_impacto.proyecto_id,
             proyecto_titulo=proyecto_impacto.proyecto_titulo,
+            max_nivel_relevancia=proyecto_impacto.max_nivel_relevancia,
             descripcion_impacto_consolidada=proyecto_impacto.descripcion_impacto_consolidada,
         )
 
@@ -71,6 +72,7 @@ def guardar_descubrimientos(
         for impacto in proyecto_impacto.impactos:
             ImpactoDescubierto.objects.create(
                 descubrimiento=descubrimiento,
+                articulo_numero=impacto.articulo_numero,
                 extracto_interno=impacto.extracto_interno,
                 extracto_articulo=impacto.extracto_articulo,
                 nivel_relevancia=impacto.nivel_relevancia,
@@ -82,6 +84,7 @@ def guardar_descubrimientos(
             "id": descubrimiento.id,
             "proyecto_id": descubrimiento.proyecto_id,
             "proyecto_titulo": descubrimiento.proyecto_titulo,
+            "max_nivel_relevancia": descubrimiento.max_nivel_relevancia,
             "descripcion_impacto_consolidada": descubrimiento.descripcion_impacto_consolidada,
             "cantidad_impactos": cantidad_impactos,
         })

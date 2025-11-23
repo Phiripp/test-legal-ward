@@ -1,7 +1,6 @@
 """Nodos del grafo del agente de detección de conflictos."""
 
 import logging
-import time
 
 import numpy as np
 from django.conf import settings
@@ -11,6 +10,7 @@ from .llm_map import llm_map
 from .models import (
     ConflictoDetectado,
     ImpactoConflicto,
+    ImpactoConflictoLLM,
     ProyectoLey,
     ProyectoLeyImpacto,
 )
@@ -20,7 +20,7 @@ from .state import ConflictDetectorState
 logger = logging.getLogger(__name__)
 
 # Variables globales de configuración
-SIMILITUD_THRESHOLD = 0.4
+SIMILITUD_THRESHOLD = 0.35
 MAX_ARTICULOS_POR_PAGINA = 10
 EMBEDDING_MODEL = "text-embedding-3-small"
 
@@ -89,9 +89,6 @@ def generar_embeddings(textos: list[str], batch_size: int = 100) -> list[list[fl
 
             batch_embeddings = [item.embedding for item in response.data]
             embeddings.extend(batch_embeddings)
-
-            # Pequeña pausa para evitar rate limits
-            time.sleep(0.1)
 
         except Exception as e:
             logger.error(f"Error al procesar lote {i // batch_size + 1}: {e}")
@@ -314,12 +311,12 @@ def calcular_impacto_conflictos(conflictos: list[ConflictoDetectado]):
     # Convertir conflictos a strings usando __str__
     textos_para_procesar = [str(conflicto) for conflicto in conflictos]
 
-    # Usar llm_map para procesar los conflictos
+    # Usar llm_map para procesar los conflictos (usa ImpactoConflictoLLM para el LLM)
     result = llm_map(
         texts=textos_para_procesar,
         map_prompt=MAP_EXTRACCION_MATRICES,
-        map_output_parser=ImpactoConflicto,
-        concurrency_limit=16,
+        map_output_parser=ImpactoConflictoLLM,
+        concurrency_limit=128,
     )
 
     logger.info(f"Impacto calculado para {len(result.map_results)} conflictos")
@@ -367,7 +364,7 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
         proyectos_impacto = {}
 
         # Combinar cada conflicto con su impacto correspondiente
-        for conflicto, impacto in zip(conflictos, conflictos_impacto.map_results):
+        for conflicto, impacto_llm in zip(conflictos, conflictos_impacto.map_results):
             proyecto_id = conflicto.proyecto_id
             proyecto_titulo = conflicto.proyecto_titulo
 
@@ -378,6 +375,14 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
                     "impactos": [],
                 }
 
+            # Crear ImpactoConflicto con articulo_numero del conflicto
+            impacto = ImpactoConflicto(
+                articulo_numero=conflicto.articulo_numero,
+                extracto_interno=impacto_llm.extracto_interno,
+                extracto_articulo=impacto_llm.extracto_articulo,
+                nivel_relevancia=impacto_llm.nivel_relevancia,
+                descripcion_impacto=impacto_llm.descripcion_impacto,
+            )
             proyectos_impacto[proyecto_id]["impactos"].append(impacto)
 
         # Construir lista de ProyectoLeyImpacto
@@ -386,7 +391,13 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
             for proyecto_id, proyecto in proyectos_impacto.items():
                 all_descriptions = []
                 impactos_relevantes = 0
+                max_nivel_relevancia = 0
+
                 for impacto in proyecto["impactos"]:
+                    # Calcular el máximo nivel de relevancia
+                    if impacto.nivel_relevancia > max_nivel_relevancia:
+                        max_nivel_relevancia = impacto.nivel_relevancia
+
                     if impacto.nivel_relevancia > 50:
                         all_descriptions.append(impacto.descripcion_impacto)
                         impactos_relevantes += 1
@@ -396,14 +407,17 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
                     proyecto_id=proyecto["proyecto_id"],
                     proyecto_titulo=proyecto["proyecto_titulo"],
                     impactos=proyecto["impactos"],
+                    max_nivel_relevancia=max_nivel_relevancia,
                     descripcion_impacto_consolidada=description,
                 )
                 proyectos_ley_impacto.append(proyecto_ley_impacto)
                 logger.info(
                     f"Proyecto {proyecto_id}: {len(proyecto['impactos'])} impactos totales, "
-                    f"{impactos_relevantes} relevantes (>50)"
+                    f"{impactos_relevantes} relevantes (>50), max_relevancia={max_nivel_relevancia}"
                 )
 
-    logger.info(f"Procesamiento completado: {len(proyectos_ley_impacto or [])} proyectos con impacto")
+    logger.info(
+        f"Procesamiento completado: {len(proyectos_ley_impacto or [])} proyectos con impacto"
+    )
     state.proyecto_ley_impacto = proyectos_ley_impacto
     return state
