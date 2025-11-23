@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { getDiscoveryDetail, trackDiscovery, discardDiscovery, type DescubrimientoDetail } from "../../services/api/conflictDetector";
 import { addRecentlyViewedDiscovery } from "../../lib/utils";
 import ReactMarkdown from "react-markdown";
+import { useDiscoveries } from "../../contexts/DiscoveriesContext";
 
 export const Route = createFileRoute("/_authenticated/discoveries/$id")({
   component: ProjectDetail,
@@ -18,12 +19,13 @@ function ProjectDetail() {
   const navigate = useNavigate();
   const { id } = Route.useParams();
   const search = Route.useSearch();
+  const { refreshPendingCount } = useDiscoveries();
   const [discovery, setDiscovery] = useState<DescubrimientoDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [visibleImpactos, setVisibleImpactos] = useState(10);
   const IMPACTOS_PER_PAGE = 10;
-  
+
   // Determinar si viene de seguimiento
   const fromTracking = search.from === 'tracking';
 
@@ -39,6 +41,7 @@ function ProjectDetail() {
         proyecto_id: data.proyecto_id,
         proyecto_titulo: data.proyecto_titulo,
         cantidad_impactos: data.impactos.length,
+        max_nivel_relevancia: data.max_nivel_relevancia,
         estado: data.estado,
       });
     } catch (err) {
@@ -85,6 +88,8 @@ function ProjectDetail() {
     if (!discovery) return;
     try {
       await discardDiscovery(discovery.id);
+      // Actualizar el contador de pendientes
+      await refreshPendingCount();
       // Redirigir a la lista de descubrimientos
       navigate({ to: "/discoveries" });
     } catch (error) {
@@ -97,6 +102,8 @@ function ProjectDetail() {
     if (!discovery) return;
     try {
       await trackDiscovery(discovery.id);
+      // Actualizar el contador de pendientes
+      await refreshPendingCount();
       // Redirigir a la vista de seguimiento
       navigate({ to: "/tracking" });
     } catch (error) {
@@ -164,20 +171,24 @@ function ProjectDetail() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleDiscard}
-            className="flex items-center gap-2 px-4 py-2 text-sm border border-[hsl(var(--border))] rounded-md hover:bg-[hsl(var(--muted))] transition-colors"
-          >
-            <X className="h-4 w-4" />
-            Descartar
-          </button>
-          <button
-            onClick={handleTrack}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-[hsl(var(--primary))] text-white rounded-md hover:opacity-90 transition-opacity"
-          >
-            <Eye className="h-4 w-4" />
-            Dar Seguimiento
-          </button>
+          {discovery.estado !== 'DISCARDED' && (
+            <button
+              onClick={handleDiscard}
+              className="flex items-center gap-2 px-4 py-2 text-sm border border-[hsl(var(--border))] rounded-md hover:bg-[hsl(var(--muted))] transition-colors"
+            >
+              <X className="h-4 w-4" />
+              Descartar
+            </button>
+          )}
+          {discovery.estado !== 'TRACKING' && (
+            <button
+              onClick={handleTrack}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-[hsl(var(--primary))] text-white rounded-md hover:opacity-90 transition-opacity"
+            >
+              <Eye className="h-4 w-4" />
+              Dar Seguimiento
+            </button>
+          )}
         </div>
       </div>
 

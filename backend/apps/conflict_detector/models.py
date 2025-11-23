@@ -1,5 +1,6 @@
 """Models for conflict_detector app."""
 
+from django.conf import settings
 from django.db import models
 from pgvector.django import VectorField
 
@@ -7,6 +8,12 @@ from pgvector.django import VectorField
 class Documento(models.Model):
     """Representa un documento cargado para análisis."""
 
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="documentos",
+        help_text="Usuario que subió el documento"
+    )
     nombre = models.CharField(max_length=255)
     fecha_carga = models.DateTimeField(auto_now_add=True)
     created_at = models.DateTimeField(auto_now_add=True)
