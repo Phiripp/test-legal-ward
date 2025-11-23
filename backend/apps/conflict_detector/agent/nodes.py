@@ -136,9 +136,6 @@ def generar_embeddings(textos: list[str], batch_size: int = 100) -> list[list[fl
                 batch_embeddings = [item.embedding for item in response.data]
                 nuevos_embeddings_list.extend(batch_embeddings)
 
-                # Pequeña pausa para evitar rate limits
-                time.sleep(0.1)
-
             except Exception as e:
                 logger.error(f"Error al procesar lote {i // batch_size + 1}: {e}")
                 raise
