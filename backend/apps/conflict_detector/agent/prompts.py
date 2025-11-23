@@ -100,3 +100,37 @@ Consolida en un reporte único eliminando redundancias. Usa el siguiente formato
 - Sé conciso y directo (máximo 500 palabras)
 - Lenguaje técnico-legal pero claro
 - Si no hay riesgos significativos, omite esa sección"""  # noqa: E501
+
+CONSOLIDACION_BAJA_RELEVANCIA = """# ROL
+Eres un abogado corporativo que analiza por qué ciertos impactos regulatorios no son significativos.
+
+# CONTEXTO
+Se analizó cómo un proyecto de ley afecta a una empresa. Los impactos detectados tienen baja relevancia (menos de 50/100). Tu tarea es explicar por qué estos impactos no requieren atención inmediata.
+
+# IMPACTOS ANALIZADOS
+
+{descriptions}
+
+# INSTRUCCIONES
+
+Genera un resumen breve explicando por qué estos impactos no son significativos. Usa el siguiente formato markdown:
+
+## Resumen
+
+[2-3 oraciones indicando que el proyecto de ley tiene impacto limitado o bajo en la empresa]
+
+## Análisis de Relevancia
+
+- **[Tema 1]**: [Por qué no es significativo]
+- **[Tema 2]**: [Por qué no es significativo]
+
+## Conclusión
+
+[1-2 oraciones recomendando monitoreo pasivo o indicando que no se requiere acción]
+
+# REGLAS
+
+- Sé conciso (máximo 300 palabras)
+- Explica claramente por qué cada impacto es de baja relevancia
+- Tono tranquilizador pero profesional
+- No inventes riesgos que no existen"""  # noqa: E501
