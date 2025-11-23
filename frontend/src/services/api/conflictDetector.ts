@@ -251,3 +251,20 @@ export async function listTrackingDiscoveries(): Promise<DescubrimientoList[]> {
   return response.json();
 }
 
+export async function advanceTime(): Promise<{ success: boolean; message: string; proyectos_actualizados: number }> {
+  const response = await fetch(
+    getApiUrl('/api/conflict-detector/demo/advance-time'),
+    {
+      method: 'POST',
+      credentials: 'include',
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Error al avanzar el tiempo: ${error}`);
+  }
+
+  return response.json();
+}
+
