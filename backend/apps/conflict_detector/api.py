@@ -193,6 +193,7 @@ def list_tracking_discoveries(request):
             "descripcion_impacto_consolidada": desc.descripcion_impacto_consolidada,
             "fecha_analisis": desc.fecha_analisis,
             "cantidad_impactos": desc.cantidad_impactos,
+            "max_nivel_relevancia": desc.max_nivel_relevancia,
             "documento_nombre": desc.documento.nombre,
             "documento_id": desc.documento.id,
             "estado": desc.estado,
