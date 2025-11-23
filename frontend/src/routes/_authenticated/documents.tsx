@@ -19,12 +19,25 @@ function Documents() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [detectionResult, setDetectionResult] = useState<DetectConflictsResponse | null>(null);
   const [documents, setDocuments] = useState<DocumentoList[]>([]);
+  const [showUploadMenu, setShowUploadMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Cargar documentos al montar el componente
   useEffect(() => {
     loadDocuments();
   }, []);
+
+  // Cerrar el menú al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showUploadMenu && !(event.target as Element).closest('.relative')) {
+        setShowUploadMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showUploadMenu]);
 
   const loadDocuments = async () => {
     try {
@@ -86,6 +99,31 @@ function Documents() {
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
+    setShowUploadMenu(false);
+  };
+
+  const handleUseSamplePDF = async () => {
+    setShowUploadMenu(false);
+    setIsUploading(true);
+    setUploadError(null);
+    setDetectionResult(null);
+
+    try {
+      // Importar el PDF de prueba dinámicamente
+      const pdfModule = await import('../../assets/memoria_cristaleria.pdf?url');
+      const response = await fetch(pdfModule.default);
+      const blob = await response.blob();
+      const file = new File([blob], 'memoria_cristaleria.pdf', { type: 'application/pdf' });
+
+      const result = await detectConflicts(file);
+      setDetectionResult(result);
+      await loadDocuments();
+    } catch (error) {
+      console.error('Error al usar PDF de prueba:', error);
+      setUploadError(error instanceof Error ? error.message : 'Error desconocido al procesar el documento');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -106,7 +144,7 @@ function Documents() {
             Perfil corporativo y documentación analizada
           </p>
         </div>
-        <div>
+        <div className="relative">
           <input
             ref={fileInputRef}
             type="file"
@@ -115,7 +153,7 @@ function Documents() {
             className="hidden"
           />
           <button
-            onClick={handleUploadClick}
+            onClick={() => setShowUploadMenu(!showUploadMenu)}
             disabled={isUploading}
             className="px-4 py-2 bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] rounded-md hover:bg-[hsl(var(--primary))]/90 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -131,6 +169,29 @@ function Documents() {
               </>
             )}
           </button>
+
+          {/* Menú desplegable */}
+          {showUploadMenu && !isUploading && (
+            <div className="absolute right-0 mt-2 w-56 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-md shadow-lg z-10">
+              <button
+                onClick={handleUseSamplePDF}
+                className="w-full text-left px-4 py-3 hover:bg-[hsl(var(--accent))] flex items-center gap-2 border-b border-[hsl(var(--border))]"
+              >
+                <FileText className="h-4 w-4" />
+                <div>
+                  <div className="font-medium text-sm">Usar PDF de prueba</div>
+                  <div className="text-xs text-[hsl(var(--muted-foreground))]">memoria_cristaleria.pdf</div>
+                </div>
+              </button>
+              <button
+                onClick={handleUploadClick}
+                className="w-full text-left px-4 py-3 hover:bg-[hsl(var(--accent))] flex items-center gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                <div className="font-medium text-sm">Elegir mi propio archivo</div>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

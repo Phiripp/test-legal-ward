@@ -55,6 +55,7 @@ class DescubrimientoListSchema(Schema):
     descripcion_impacto_consolidada: str | None
     fecha_analisis: datetime
     cantidad_impactos: int
+    max_nivel_relevancia: int
     documento_nombre: str
     documento_id: int
     estado: str
@@ -72,5 +73,6 @@ class DescubrimientoDetailSchema(Schema):
     descripcion_impacto_consolidada: str | None
     fecha_analisis: datetime
     estado: str
+    max_nivel_relevancia: int
     documento: DocumentoListSchema
     impactos: list[ImpactoDescubiertoSchema]
