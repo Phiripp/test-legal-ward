@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Eye, X, ArrowLeft, FileText, Scale, Loader2 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { getDiscoveryDetail, trackDiscovery, discardDiscovery, type DescubrimientoDetail } from "../../services/api/conflictDetector";
-import { addRecentlyViewedDiscovery } from "../../lib/utils";
+import { addRecentlyViewedDiscovery, removeRecentlyViewedDiscovery } from "../../lib/utils";
 import ReactMarkdown from "react-markdown";
 import { useDiscoveries } from "../../contexts/DiscoveriesContext";
 
@@ -88,6 +88,8 @@ function ProjectDetail() {
     if (!discovery) return;
     try {
       await discardDiscovery(discovery.id);
+      // Eliminar de proyectos vistos recientemente
+      removeRecentlyViewedDiscovery(discovery.id);
       // Actualizar el contador de pendientes
       await refreshPendingCount();
       // Redirigir a la lista de descubrimientos
