@@ -11,6 +11,7 @@ const getApiUrl = (path: string): string => {
 
 export interface ImpactoDescubierto {
   id: number;
+  articulo_numero: number;
   extracto_interno: string;
   extracto_articulo: string;
   nivel_relevancia: number;

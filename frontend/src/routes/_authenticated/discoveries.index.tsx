@@ -113,8 +113,6 @@ function Discoveries() {
 
                   <div className="flex items-center justify-between pt-3 border-t border-[hsl(var(--border))]">
                     <div className="flex items-center gap-4 text-sm text-[hsl(var(--muted-foreground))]">
-                      <span>Proyecto {discovery.proyecto_id}</span>
-                      <span>•</span>
                       <span>{discovery.cantidad_impactos} impacto(s) detectado(s)</span>
                       <span>•</span>
                       <span>Analizado: {formatDate(discovery.fecha_analisis)}</span>

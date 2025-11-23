@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Eye, X, ArrowLeft, FileText, Scale, Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getDiscoveryDetail, type DescubrimientoDetail } from "../../services/api/conflictDetector";
 import ReactMarkdown from "react-markdown";
 
@@ -14,12 +14,10 @@ function ProjectDetail() {
   const [discovery, setDiscovery] = useState<DescubrimientoDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [visibleImpactos, setVisibleImpactos] = useState(10);
+  const IMPACTOS_PER_PAGE = 10;
 
-  useEffect(() => {
-    loadDiscovery();
-  }, [id]);
-
-  const loadDiscovery = async () => {
+  const loadDiscovery = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await getDiscoveryDetail(Number(id));
@@ -30,7 +28,11 @@ function ProjectDetail() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    loadDiscovery();
+  }, [loadDiscovery]);
 
   const getImpactLevel = (cantidadImpactos: number): string => {
     if (cantidadImpactos >= 3) return "Alto";
@@ -130,26 +132,28 @@ function ProjectDetail() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Extractos del Documento Interno */}
-        <div className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] p-6">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
-              <FileText className="h-5 w-5" />
-              Extractos del Documento Analizado
-            </h2>
-            <p className="text-sm text-[hsl(var(--muted-foreground))]">
-              Secciones de tu documento <strong>{discovery.documento.nombre}</strong> que presentan conflictos
-            </p>
-          </div>
-          <div className="space-y-4">
-            {discovery.impactos.map((impacto) => (
-              <div
-                key={impacto.id}
-                className="space-y-2 pb-4 border-b border-[hsl(var(--border))] last:border-0 last:pb-0"
-              >
-                <div className="flex items-start justify-between">
-                  <p className="font-semibold text-sm">Extracto del Documento</p>
+      {/* Encabezados */}
+      <div className="mb-4">
+        <p className="text-sm text-[hsl(var(--muted-foreground))]">
+          Mostrando {Math.min(visibleImpactos, discovery.impactos.length)} de {discovery.impactos.length} impactos detectados
+        </p>
+      </div>
+
+      {/* Impactos en pares alineados */}
+      <div className="space-y-6">
+        {discovery.impactos.slice(0, visibleImpactos).map((impacto) => (
+          <div
+            key={impacto.id}
+            className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] p-6"
+          >
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Extracto del Documento */}
+              <div className="space-y-2">
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Extracto del Documento
+                  </h3>
                   <span className="px-2 py-1 text-xs bg-[hsl(var(--muted))] rounded">
                     Relevancia: {impacto.nivel_relevancia}%
                   </span>
@@ -158,38 +162,42 @@ function ProjectDetail() {
                   {impacto.extracto_interno}
                 </p>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Artículos del Proyecto de Ley */}
-        <div className="bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] p-6">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
-              <Scale className="h-5 w-5" />
-              Artículos del Proyecto de Ley
-            </h2>
-            <p className="text-sm text-[hsl(var(--muted-foreground))]">
-              Extractos de los artículos que generan conflicto
-            </p>
-          </div>
-          <div className="space-y-4">
-            {discovery.impactos.map((impacto) => (
-              <div
-                key={impacto.id}
-                className="space-y-2 pb-4 border-b border-[hsl(var(--border))] last:border-0 last:pb-0"
-              >
-                <p className="font-semibold text-sm text-[hsl(var(--primary))]">
-                  Extracto del Artículo
-                </p>
+              {/* Extracto del Artículo */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm text-[hsl(var(--primary))] flex items-center gap-2 mb-2">
+                  <Scale className="h-4 w-4" />
+                  Extracto de Artículo {impacto.articulo_numero}
+                </h3>
                 <p className="text-sm text-[hsl(var(--muted-foreground))] bg-[hsl(var(--primary))]/5 p-3 rounded">
                   {impacto.extracto_articulo}
                 </p>
               </div>
-            ))}
+            </div>
           </div>
-        </div>
+        ))}
       </div>
+
+      {/* Botón de paginación centralizado */}
+      {discovery.impactos.length > IMPACTOS_PER_PAGE && (
+        <div className="flex justify-center">
+          {visibleImpactos < discovery.impactos.length ? (
+            <button
+              onClick={() => setVisibleImpactos(prev => Math.min(prev + IMPACTOS_PER_PAGE, discovery.impactos.length))}
+              className="px-6 py-2 bg-[hsl(var(--primary))] text-white rounded hover:opacity-90 transition-opacity"
+            >
+              Cargar siguientes {Math.min(IMPACTOS_PER_PAGE, discovery.impactos.length - visibleImpactos)} impactos
+            </button>
+          ) : (
+            <button
+              onClick={() => setVisibleImpactos(IMPACTOS_PER_PAGE)}
+              className="px-6 py-2 bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] rounded hover:bg-[hsl(var(--muted))]/80 transition-colors"
+            >
+              Volver a ver los primeros {IMPACTOS_PER_PAGE}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Análisis Consolidado de Impacto */}
       {discovery.descripcion_impacto_consolidada && (

@@ -9,6 +9,7 @@ class ImpactoDescubiertoSchema(Schema):
     """Schema para un impacto descubierto."""
 
     id: int
+    articulo_numero: int
     extracto_interno: str
     extracto_articulo: str
     nivel_relevancia: int
