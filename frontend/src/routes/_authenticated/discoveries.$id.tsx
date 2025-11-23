@@ -257,7 +257,7 @@ function ProjectDetail() {
               Resumen general de cómo este proyecto afecta tu documento
             </p>
           </div>
-          <div className="prose prose-sm max-w-none text-[hsl(var(--foreground))]">
+          <div className="markdown-content">
             <ReactMarkdown>{discovery.descripcion_impacto_consolidada}</ReactMarkdown>
           </div>
         </div>
