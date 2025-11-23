@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Eye, X, ArrowLeft, FileText, Scale, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { getDiscoveryDetail, type DescubrimientoDetail } from "../../services/api/conflictDetector";
+import ReactMarkdown from "react-markdown";
 
 export const Route = createFileRoute("/_authenticated/discoveries/$id")({
   component: ProjectDetail,
@@ -156,14 +157,6 @@ function ProjectDetail() {
                 <p className="text-sm text-[hsl(var(--muted-foreground))] italic bg-[hsl(var(--muted))]/30 p-3 rounded">
                   {impacto.extracto_interno}
                 </p>
-                <div className="mt-2">
-                  <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] mb-1">
-                    Análisis del Impacto:
-                  </p>
-                  <p className="text-sm text-[hsl(var(--foreground))]">
-                    {impacto.descripcion_impacto}
-                  </p>
-                </div>
               </div>
             ))}
           </div>
@@ -207,10 +200,8 @@ function ProjectDetail() {
               Resumen general de cómo este proyecto afecta tu documento
             </p>
           </div>
-          <div className="prose prose-sm max-w-none">
-            <p className="text-[hsl(var(--foreground))] leading-relaxed">
-              {discovery.descripcion_impacto_consolidada}
-            </p>
+          <div className="prose prose-sm max-w-none text-[hsl(var(--foreground))]">
+            <ReactMarkdown>{discovery.descripcion_impacto_consolidada}</ReactMarkdown>
           </div>
         </div>
       )}

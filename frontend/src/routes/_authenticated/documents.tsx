@@ -145,33 +145,9 @@ function Documents() {
       )}
 
       {detectionResult && (
-        <div className="bg-green-50 border border-green-200 text-green-800 rounded-md p-4">
-          <div className="flex items-start gap-3">
-            <CheckCircle2 className="h-5 w-5 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h3 className="font-semibold mb-2">Documento Procesado Exitosamente</h3>
-              <p className="text-sm mb-3">
-                <strong>{detectionResult.documento_nombre}</strong> ha sido analizado.
-              </p>
-              {detectionResult.descubrimientos.length === 0 ? (
-                <p className="text-sm">No se detectaron conflictos en el documento.</p>
-              ) : (
-                <div className="text-sm space-y-2">
-                  <p className="font-semibold">
-                    Se encontraron {detectionResult.descubrimientos.length} proyecto(s) con conflictos:
-                  </p>
-                  {detectionResult.descubrimientos.map((desc) => (
-                    <div key={desc.id} className="bg-white/50 rounded p-3">
-                      <p className="font-semibold">{desc.proyecto_titulo}</p>
-                      <p className="text-xs mt-1">
-                        {desc.cantidad_impactos} impacto(s) detectado(s)
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+        <div className="bg-green-50 border border-green-200 text-green-800 rounded-md p-3 flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+          <p className="text-sm">Documento procesado exitosamente</p>
         </div>
       )}
 

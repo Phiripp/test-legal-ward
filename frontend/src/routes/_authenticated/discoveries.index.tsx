@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Eye, X, ExternalLink, AlertTriangle, Loader2, FileText } from "lucide-react";
+import { Eye, X, AlertTriangle, Loader2, FileText } from "lucide-react";
 import { useState, useEffect } from "react";
 import { listDiscoveries, type DescubrimientoList } from "../../services/api/conflictDetector";
 
@@ -133,11 +133,6 @@ function Discoveries() {
                       >
                         <Eye className="h-4 w-4" />
                         Dar Seguimiento
-                      </button>
-                      <button
-                        className="p-1.5 hover:bg-[hsl(var(--accent))] rounded-md"
-                      >
-                        <ExternalLink className="h-4 w-4" />
                       </button>
                     </div>
                   </div>

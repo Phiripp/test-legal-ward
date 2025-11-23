@@ -162,6 +162,7 @@ def get_discovery_detail(request, descubrimiento_id: int):
 
     Returns:
         Descubrimiento con todos sus impactos y el documento asociado
+        (solo impactos con nivel de relevancia > 40%)
     """
     descubrimiento = get_object_or_404(
         DescubrimientoConflicto.objects.select_related("documento").prefetch_related(
@@ -191,6 +192,6 @@ def get_discovery_detail(request, descubrimiento_id: int):
                 "descripcion_impacto": imp.descripcion_impacto,
                 "created_at": imp.created_at,
             }
-            for imp in descubrimiento.impactos.all()
+            for imp in descubrimiento.impactos.filter(nivel_relevancia__gt=40)
         ],
     }
