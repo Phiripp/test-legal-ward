@@ -1,3 +1,79 @@
 """Models for conflict_detector app."""
 
-# Models can be added here in the future
+from django.db import models
+
+
+class Documento(models.Model):
+    """Representa un documento cargado para análisis."""
+
+    nombre = models.CharField(max_length=255)
+    fecha_carga = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "conflict_detector_documento"
+        ordering = ["-fecha_carga"]
+        verbose_name = "Documento"
+        verbose_name_plural = "Documentos"
+
+    def __str__(self) -> str:
+        return f"{self.nombre}"
+
+
+class DescubrimientoConflicto(models.Model):
+    """Representa un descubrimiento de conflicto entre un documento y un proyecto de ley."""
+
+    documento = models.ForeignKey(
+        Documento,
+        on_delete=models.CASCADE,
+        related_name="descubrimientos",
+    )
+    proyecto_id = models.CharField(max_length=50)
+    proyecto_titulo = models.TextField()
+    descripcion_impacto_consolidada = models.TextField(blank=True, null=True)
+    fecha_analisis = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "conflict_detector_descubrimiento_conflicto"
+        ordering = ["-fecha_analisis"]
+        verbose_name = "Descubrimiento de Conflicto"
+        verbose_name_plural = "Descubrimientos de Conflictos"
+
+    def __str__(self) -> str:
+        return f"{self.proyecto_id} - {self.documento.nombre}"
+
+
+class ImpactoDescubierto(models.Model):
+    """Representa un impacto individual descubierto dentro de un descubrimiento."""
+
+    descubrimiento = models.ForeignKey(
+        DescubrimientoConflicto,
+        on_delete=models.CASCADE,
+        related_name="impactos",
+    )
+    extracto_interno = models.TextField(
+        help_text="Extracto del documento interno que presenta conflicto"
+    )
+    extracto_articulo = models.TextField(
+        help_text="Extracto del artículo de ley que genera el conflicto"
+    )
+    nivel_relevancia = models.IntegerField(
+        help_text="Nivel de relevancia del impacto (0-100)"
+    )
+    descripcion_impacto = models.TextField(
+        help_text="Análisis técnico-legal del impacto"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "conflict_detector_impacto_descubierto"
+        ordering = ["-nivel_relevancia"]
+        verbose_name = "Impacto Descubierto"
+        verbose_name_plural = "Impactos Descubiertos"
+
+    def __str__(self) -> str:
+        return f"Impacto (relevancia: {self.nivel_relevancia})"
