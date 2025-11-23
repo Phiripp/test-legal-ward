@@ -14,6 +14,7 @@ export interface RecentlyViewedDiscovery {
   proyecto_id: string;
   proyecto_titulo: string;
   cantidad_impactos: number;
+  max_nivel_relevancia: number;
   estado: string;
   viewedAt: string;
 }
@@ -23,6 +24,7 @@ export function addRecentlyViewedDiscovery(discovery: {
   proyecto_id: string;
   proyecto_titulo: string;
   cantidad_impactos: number;
+  max_nivel_relevancia: number;
   estado: string;
 }): void {
   try {

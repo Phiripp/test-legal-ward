@@ -43,6 +43,9 @@ function Tracking() {
   const getImpactLevel = (cantidadImpactos: number): string => {
     if (cantidadImpactos >= 3) return "Alto";
     if (cantidadImpactos >= 1) return "Medio";
+  const getImpactLevel = (maxRelevancia: number): string => {
+    if (maxRelevancia >= 50) return "Alto";
+    if (maxRelevancia >= 30) return "Medio";
     return "Bajo";
   };
 
@@ -163,7 +166,7 @@ function Tracking() {
       ) : (
         <div className="grid gap-6">
           {discoveries.map((discovery) => {
-            const impactLevel = getImpactLevel(discovery.cantidad_impactos);
+            const impactLevel = getImpactLevel(discovery.max_nivel_relevancia);
             const timeline = getTimelineFromEtapa(discovery.proyecto_etapa, discovery.proyecto_fecha || undefined);
             
             return (
