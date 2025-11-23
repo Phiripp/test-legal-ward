@@ -20,7 +20,7 @@ from .state import ConflictDetectorState
 logger = logging.getLogger(__name__)
 
 # Variables globales de configuración
-SIMILITUD_THRESHOLD = 0.35
+SIMILITUD_THRESHOLD = 0.40
 MAX_ARTICULOS_POR_PAGINA = 10
 EMBEDDING_MODEL = "text-embedding-3-small"
 
@@ -364,7 +364,18 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
         proyectos_impacto = {}
 
         # Combinar cada conflicto con su impacto correspondiente
+        impactos_sin_relacion_count = 0
+
         for conflicto, impacto_llm in zip(conflictos, conflictos_impacto.map_results):
+            # Filtrar solo impactos donde el modelo indicó explícitamente sin relación
+            if impacto_llm.nivel_relevancia == 0:
+                logger.info(
+                    f"Impacto descartado (sin relación) - Proyecto: {conflicto.proyecto_id}, "
+                    f"Artículo: {conflicto.articulo_numero}"
+                )
+                impactos_sin_relacion_count += 1
+                continue
+
             proyecto_id = conflicto.proyecto_id
             proyecto_titulo = conflicto.proyecto_titulo
 
@@ -384,6 +395,11 @@ def process_document(state: ConflictDetectorState) -> ConflictDetectorState:
                 descripcion_impacto=impacto_llm.descripcion_impacto,
             )
             proyectos_impacto[proyecto_id]["impactos"].append(impacto)
+
+        if impactos_sin_relacion_count > 0:
+            logger.info(
+                f"Total de impactos descartados por baja relevancia: {impactos_sin_relacion_count}"
+            )
 
         # Construir lista de ProyectoLeyImpacto
         proyectos_ley_impacto = []
