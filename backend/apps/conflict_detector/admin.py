@@ -2,7 +2,12 @@
 
 from django.contrib import admin
 
-from .models import Documento, DescubrimientoConflicto, ImpactoDescubierto
+from .models import (
+    Documento,
+    DescubrimientoConflicto,
+    EmbeddingCache,
+    ImpactoDescubierto,
+)
 
 
 class DescubrimientoConflictoInline(admin.TabularInline):
@@ -103,3 +108,24 @@ class ImpactoDescubiertoAdmin(admin.ModelAdmin):
         )
 
     descripcion_corta.short_description = "Descripcion"
+
+
+@admin.register(EmbeddingCache)
+class EmbeddingCacheAdmin(admin.ModelAdmin):
+    """Admin para EmbeddingCache."""
+
+    list_display = [
+        "id",
+        "text_hash_corto",
+        "model_name",
+        "dimension",
+        "created_at",
+    ]
+    list_filter = ["model_name", "dimension", "created_at"]
+    search_fields = ["text_hash"]
+    readonly_fields = ["text_hash", "embedding", "model_name", "dimension", "created_at"]
+
+    def text_hash_corto(self, obj):
+        return f"{obj.text_hash[:16]}..."
+
+    text_hash_corto.short_description = "Hash"
