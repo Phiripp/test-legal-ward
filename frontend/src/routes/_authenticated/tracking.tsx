@@ -40,9 +40,6 @@ function Tracking() {
     }
   };
 
-  const getImpactLevel = (cantidadImpactos: number): string => {
-    if (cantidadImpactos >= 3) return "Alto";
-    if (cantidadImpactos >= 1) return "Medio";
   const getImpactLevel = (maxRelevancia: number): string => {
     if (maxRelevancia >= 50) return "Alto";
     if (maxRelevancia >= 30) return "Medio";
