@@ -1,2 +1,20 @@
-frontend/node_modules
+# Dependencies / build output
+node_modules/
 frontend/dist/
+frontend/.pnpm-store/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+local/conf/local.env
+local/conf/*.local
+
+# Local databases, logs, OS/editor noise
+*.sqlite3
+*.log
+.DS_Store
+staticfiles/
