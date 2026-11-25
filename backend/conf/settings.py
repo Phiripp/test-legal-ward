@@ -24,7 +24,8 @@ class DjangoConfig(Config):
 
     DEBUG: bool = False
     SECRET_KEY: str
-    ALLOWED_HOSTS: StringList = ["*"]
+    ALLOWED_HOSTS: StringList = ["localhost", "127.0.0.1"]
+    ALLOW_REGISTRATION: bool = False
     ADMIN_PATH: str = "admin/"
     ADMINS: str = ""
     MEDIA_URL: str = "/media/"
@@ -413,7 +414,11 @@ CELERY_WORKER_SEND_TASK_EVENTS = True
 HEADLESS_ONLY = False
 
 # https://docs.allauth.org/en/latest/account/configuration.html
-ACCOUNT_ALLOW_REGISTRATION = True
+# Self-service signup is closed unless DJANGO_ALLOW_REGISTRATION=true. The
+# adapters below are what actually enforce the flag.
+ACCOUNT_ALLOW_REGISTRATION = django_config.ALLOW_REGISTRATION
+ACCOUNT_ADAPTER = "apps.users.adapters.AccountAdapter"
+SOCIALACCOUNT_ADAPTER = "apps.users.adapters.SocialAccountAdapter"
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*"]
