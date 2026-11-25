@@ -18,6 +18,9 @@ services:
       - DJANGO_FRONTEND_URL=http://localhost:3000
     env_file:
       - ./conf/${LOCAL_ENV:-default}
+      # Optional, git-ignored overrides (e.g. PROJECT_OPENAI_API_KEY)
+      - path: ./conf/local.env
+        required: false
     ports:
       - "8000:8000"
 
@@ -44,4 +47,5 @@ services:
     env_file:
       - ./conf/${LOCAL_ENV:-default}
     ports:
-      - "5432:5432"
+      # Bound to loopback only: the dev database uses default credentials
+      - "127.0.0.1:5432:5432"

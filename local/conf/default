@@ -74,4 +74,10 @@ POSTGRES_DB=webapp
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 
-PROJECT_OPENAI_API_KEY=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
+#=========================================#
+#===== PROJECT CONFIGURATION =============#
+#=========================================#
+# Do NOT put real secrets in this file: it is tracked by git.
+# Put your OpenAI key in local/conf/local.env (git-ignored), e.g.
+#   PROJECT_OPENAI_API_KEY=sk-...
+PROJECT_OPENAI_API_KEY=
